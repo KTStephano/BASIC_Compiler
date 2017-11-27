@@ -131,6 +131,8 @@ foo = "(define foo " ++
       " (130 let d = ((b * b) - (4.0 * (a * c))) )" ++
       " (140 print d) (150 end)))"
 
+pr = "(define pr '((100 print \"hello\")))"
+
 data Value = VIntegral Int | VFloating Double | VString String deriving (Show, Eq)
 
 newtype Environment = Environment {getEnv :: [(String, Value)]} deriving (Show, Eq)
@@ -146,9 +148,12 @@ updateEnv env str val = let x = findEnv env str
 
 data Bytecode = Return {line :: Int} | Push {arg :: Value} | Pop | Print {line :: Int} deriving (Show)
 
-extractFunction line (Cons (Symbol "return") s) = Return line
-extractFunction line (Cons (Symbol "print") s) = Print line
+extractFunction :: Int -> Sexpr -> [Bytecode]
+extractFunction line (Cons (Symbol "return") s) = [Return line]
+extractFunction line (Cons (Symbol "print") s) = [Print line]
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
-compile (Cons (Cons (Number i) s1) s2) code = code
-compile (Cons s1 s2) code = compile s2 code
+compile Nil code = []
+compile (Cons (Number i) s) code = [Pop]
+compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
+compile _ code = []
