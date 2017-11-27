@@ -150,6 +150,5 @@ extractFunction line (Cons (Symbol "return") s) = Return line
 extractFunction line (Cons (Symbol "print") s) = Print line
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
-compile (Cons (Number i) s2) code = code
-compile (Cons (Cons (Number i) s1) s2)
+compile (Cons (Cons (Number i) s1) s2) = code
 compile (Cons s1 s2) code = compile s2 code
