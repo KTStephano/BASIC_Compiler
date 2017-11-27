@@ -8,6 +8,7 @@ import Parselib
 import Data.Char
 import Control.Monad
 import Control.Applicative hiding (many)
+import System.IO.Unsafe
 
 data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
@@ -40,12 +41,12 @@ A ::= {symbol} | {number} | {integernum}
 -}
 
 quote = do
-    x <- symb "\""
+    x <- char '"'
     y <- (many quotedString)
     z <- symb "\""
-    return (x ++ y ++ z)
+    return ([x] ++ y ++ z)
 
-quotedString = alphanum +++ (sat isSpace)
+quotedString = alphanum +++ (sat isSpace) +++ misc
 
 cdigit = do 
     c <- sat isDigit
@@ -63,7 +64,7 @@ number = do
 
 misc = do
     r <- item--token item
-    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=']
+    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!']
     if (r `elem` miscVals) then return r else mzero
 
 first = misc +++ lower
@@ -131,9 +132,16 @@ foo = "(define foo " ++
       " (130 let d = ((b * b) - (4.0 * (a * c))) )" ++
       " (140 print d) (150 end)))"
 
-pr = "(define pr '((100 print \"hello\")))"
+pr = "(define pr '((100 print! \"hello\")" ++
+                  "(200 print \" goodbyte\")" ++
+                  "(300 print \"Just kidding\" \" no really\")))"
 
-data Value = VIntegral Int | VFloating Double | VString String deriving (Show, Eq)
+data Value = VIntegral Int | VFloating Double | VString String deriving (Eq)
+
+instance Show Value where
+    show (VIntegral x) = show x
+    show (VFloating d) = show d
+    show (VString s) = s
 
 newtype Environment = Environment {getEnv :: [(String, Value)]} deriving (Show, Eq)
 
@@ -146,7 +154,11 @@ updateEnv env str val = let x = findEnv env str
                         in if (x == []) then Environment $ (getEnv env) ++ [(str, val)]
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
-data Bytecode = Return {line :: Int} | Push {arg :: Value} | Pop | Print {line :: Int} deriving (Show)
+data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} deriving (Show)
+
+data Frame = Frame {getStack :: [Value]} deriving (Show)
+
+extractQuotes xs = filter (\s -> s /= '\"') xs
 
 extractArgs :: Sexpr -> [Bytecode]
 extractArgs Nil = []
@@ -155,11 +167,35 @@ extractArgs (Cons (Number i) s') = [Push (VIntegral i)] ++ extractArgs s'
 extractArgs (Cons (Symbol s) s') = [Push (VString s)] ++ extractArgs s'
 
 extractFunction :: Int -> Sexpr -> [Bytecode]
-extractFunction line (Cons (Symbol "return") s) = extractArgs s ++ [Return line]
+extractFunction line (Cons (Symbol "end") s) = extractArgs s ++ [End line]
 extractFunction line (Cons (Symbol "print") s) = extractArgs s ++ [Print line]
+extractFunction line (Cons (Symbol "print!") s) = extractArgs s ++ [PrintBang line]
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
 compile Nil code = []
 compile (Cons (Number i) s) code = extractFunction i s
 compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
+
+push frame val = Frame $ (getStack frame) ++ [val]
+
+--print' (Frame []) = "\n"
+print' (Frame []) = putStrLn ""
+print' (Frame (x:xs)) = do
+    putStr (show x)
+    print' (Frame xs)
+
+printBang (Frame []) = putStr ""
+printBang (Frame (x:xs)) = do
+    putStr (show x)
+    printBang (Frame xs)
+
+vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
+vm program env [] frame = putStr ""
+vm program env ((Push a):rest) frame = vm program env rest (push frame a)
+vm program env ((PrintBang l):rest) frame = do
+    printBang frame
+    vm program env rest (Frame [])
+vm program env ((Print l):rest) frame = do
+    print' frame
+    vm program env rest (Frame [])
