@@ -148,12 +148,18 @@ updateEnv env str val = let x = findEnv env str
 
 data Bytecode = Return {line :: Int} | Push {arg :: Value} | Pop | Print {line :: Int} deriving (Show)
 
+extractArgs :: Sexpr -> [Bytecode]
+extractArgs Nil = []
+extractArgs (Cons (Floating d) s') = [Push (VFloating d)] ++ extractArgs s'
+extractArgs (Cons (Number i) s') = [Push (VIntegral i)] ++ extractArgs s'
+extractArgs (Cons (Symbol s) s') = [Push (VString s)] ++ extractArgs s'
+
 extractFunction :: Int -> Sexpr -> [Bytecode]
-extractFunction line (Cons (Symbol "return") s) = [Return line]
-extractFunction line (Cons (Symbol "print") s) = [Print line]
+extractFunction line (Cons (Symbol "return") s) = extractArgs s ++ [Return line]
+extractFunction line (Cons (Symbol "print") s) = extractArgs s ++ [Print line]
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
 compile Nil code = []
-compile (Cons (Number i) s) code = [Pop]
+compile (Cons (Number i) s) code = extractFunction i s
 compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
