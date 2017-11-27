@@ -134,7 +134,10 @@ foo = "(define foo " ++
 
 pr = "(define pr '((100 print! \"hello\")" ++
                   "(200 print \" goodbyte\")" ++
-                  "(300 print \"Just kidding\" \" no really\")))"
+                  "(300 print \"Just kidding\" \" no really\")" ++
+                  "(400 print (1 + (1 + 2))))))"
+
+pr2 = "(define pr '((400 print (1 + 2))))"
 
 data Value = VIntegral Int | VFloating Double | VString String deriving (Eq)
 
@@ -154,22 +157,27 @@ updateEnv env str val = let x = findEnv env str
                         in if (x == []) then Environment $ (getEnv env) ++ [(str, val)]
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
-data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} deriving (Show)
+data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} deriving (Show)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
 extractQuotes xs = filter (\s -> s /= '\"') xs
 
+generatePush (Floating d) = Push (VFloating d)
+generatePush (Number i) = Push (VIntegral i)
+generatePush (Symbol s) = Push (VString (extractQuotes s))
+
 extractArgs :: Sexpr -> [Bytecode]
 extractArgs Nil = []
-extractArgs (Cons (Floating d) s') = [Push (VFloating d)] ++ extractArgs s'
-extractArgs (Cons (Number i) s') = [Push (VIntegral i)] ++ extractArgs s'
-extractArgs (Cons (Symbol s) s') = [Push (VString s)] ++ extractArgs s'
+extractArgs (Cons s s') = [generatePush s] ++ extractArgs s'
 
 extractFunction :: Int -> Sexpr -> [Bytecode]
-extractFunction line (Cons (Symbol "end") s) = extractArgs s ++ [End line]
-extractFunction line (Cons (Symbol "print") s) = extractArgs s ++ [Print line]
-extractFunction line (Cons (Symbol "print!") s) = extractArgs s ++ [PrintBang line]
+extractFunction line (Cons (Symbol "end") s) = [End line]
+extractFunction line (Cons (Symbol "print") s) = extractExpr line s ++ [Print line]
+extractFunction line (Cons (Symbol "print!") s) = extractExpr line s ++ [PrintBang line]
+
+extractExpr line (Cons (Cons (Number i) (Cons (Symbol "+") s)) s') = [generatePush (Number i)] ++ extractExpr line s ++ [Add line]
+extractExpr line s = extractArgs s
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
 compile Nil code = []
@@ -178,6 +186,9 @@ compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
 
 push frame val = Frame $ (getStack frame) ++ [val]
+
+add (Frame ((VIntegral x):(VIntegral y):xs)) = VIntegral $ x + y
+add (Frame ((VFloating x):(VFloating y):xs)) = VFloating $ x + y
 
 --print' (Frame []) = "\n"
 print' (Frame []) = putStrLn ""
@@ -193,6 +204,10 @@ printBang (Frame (x:xs)) = do
 vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
 vm program env [] frame = putStr ""
 vm program env ((Push a):rest) frame = vm program env rest (push frame a)
+vm program env ((Add l):rest) frame = do
+    let x = add frame
+    let f = push (Frame []) x
+    vm program env rest f
 vm program env ((PrintBang l):rest) frame = do
     printBang frame
     vm program env rest (Frame [])
