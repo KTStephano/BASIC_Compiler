@@ -143,6 +143,9 @@ pr = "(define pr '((100 print! \"hello\")" ++
 pr2 = "(define pr '(100 print ((2 * 3) - (4 * (5 * 6)))))"
 pr3 = "(define pr '((100 print ((1 + 4) + (2 + 3)))))"
 
+lettest = "(define ltest '((100 let x = ((2 * 3) - (4 * (5 * 6))))" ++
+                          "(200 print x)))"
+
 -- Parses the string and returns it in a form that is compiler-friendly
 analyze :: [Char] -> Sexpr
 analyze str = let result = p str
@@ -168,7 +171,8 @@ updateEnv env str val = let x = findEnv env str
                         in if (x == []) then Environment $ (getEnv env) ++ [(str, val)]
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
-data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} deriving (Show)
+data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
+                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Load {line :: Int} | Store {line :: Int} deriving (Show)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
@@ -178,9 +182,12 @@ getStackLength (Frame xs) = length xs
 
 extractQuotes xs = filter (\s -> s /= '\"') xs
 
-generatePush (Floating d) = Push (VFloating d)
-generatePush (Number i) = Push (VIntegral i)
-generatePush (Symbol s) = Push (VString (extractQuotes s))
+generatePush line (Floating d) = [Push (VFloating d)]
+generatePush line (Number i) = [Push (VIntegral i)]
+-- This is a string constant, such as "hello"
+generatePush line (Symbol s@('"':xs)) = [Push (VString (extractQuotes s))]
+-- This is probably a variable
+generatePush line (Symbol s) = [Push (VString s), Load line]
 
 {-
 extractArgs :: Sexpr -> [Bytecode]
@@ -196,6 +203,11 @@ extractExpr line (Cons (Cons (Number i) (Cons (Symbol "+") s)) s') = [generatePu
 extractExpr line s = extractArgs s
 -}
 
+-- Parses the Let statement
+evalLetArgs :: Int -> Sexpr -> [Bytecode]
+evalLetArgs line (Cons (Symbol "=") s) = evalExpr line s
+evalLetArgs line (Cons x@(Symbol s) s') = [Push (VString s)] ++ evalLetArgs line s'
+
 evalExpr :: Int -> Sexpr -> [Bytecode]
 evalExpr line (Cons (Symbol "end") s) = [End line]
 evalExpr line (Cons (Symbol "print") s) = evalExpr line s ++ [Print line]
@@ -203,9 +215,11 @@ evalExpr line (Cons (Symbol "print!") s) = evalExpr line s ++ [PrintBang line]
 evalExpr line (Cons (Symbol "+") s) = evalExpr line s ++ [Add line]
 evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
 evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
-evalExpr line (Cons x@(Number i) s) = [generatePush x] ++ evalExpr line s
-evalExpr line (Cons x@(Floating f) s) = [generatePush x] ++ evalExpr line s
-evalExpr line (Cons x@(Symbol ('"':xs)) s) = [generatePush x] ++ evalExpr line s -- Symbol containing a quoted value
+--evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
+evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
+evalExpr line (Cons x@(Number i) s) = generatePush line x ++ evalExpr line s
+evalExpr line (Cons x@(Floating f) s) = generatePush line x ++ evalExpr line s
+evalExpr line (Cons x@(Symbol xs) s) = generatePush line x ++ evalExpr line s -- Symbol containing a quoted value
 --evalExpr line (Cons (Cons i s) s') = [generatePush i] ++ evalExpr line s ++ evalExpr line s'
 evalExpr line (Cons s s') = evalExpr line s ++ evalExpr line s'
 evalExpr line _ = []
@@ -214,6 +228,18 @@ compile :: Sexpr -> [Bytecode] -> [Bytecode]
 compile (Cons (Number i) s) code = evalExpr i s -- For this one, (Number i) is the line number and s contains the function + args
 compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
+
+load :: Frame -> Environment -> Frame
+load frame env = let (frame', (VString var)) = pop frame
+                     val = findEnv env var
+                 in case val of
+                    [] -> frame'
+                    (x:xs) -> push frame' (snd x)
+
+store :: Frame -> Environment -> (Frame, Environment)
+store frame env = let (frame', val) = pop frame
+                      (frame'', (VString var)) = pop frame'
+                  in (frame'', updateEnv env var val)
 
 push :: Frame -> Value -> Frame
 push frame val = Frame $ (getStack frame) ++ [val]
@@ -246,6 +272,12 @@ printBang (Frame (x:xs)) = do
 vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
 vm program env [] frame = putStr ""
 vm program env ((Push a):rest) frame = vm program env rest (push frame a)
+vm program env ((Load l):rest) frame = do
+    let frame' = load frame env
+    vm program env rest frame'
+vm program env ((Store l):rest) frame = do
+    let (frame', env') = store frame env
+    vm program env' rest frame'
 vm program env ((Add l):rest) frame = do
     let (frame', x) = pop frame
     let (frame'', y) = pop frame'
