@@ -12,6 +12,9 @@ import System.IO.Unsafe
 
 data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
+car (Cons a b) = a
+cdr (Cons a b) = b
+
 instance Show Sexpr where
     show (Symbol x) = x
     show (Number x) = show x
@@ -137,7 +140,15 @@ pr = "(define pr '((100 print! \"hello\")" ++
                   "(300 print \"Just kidding\" \" no really\")" ++
                   "(400 print (1 + (1 + 2))))))"
 
-pr2 = "(define pr '((400 print (1 + 2))))"
+pr2 = "(define pr '(100 print ((2 * 3) - (4 * (5 * 6)))))"
+pr3 = "(define pr '((100 print ((1 + 4) + (2 + 3)))))"
+
+-- Parses the string and returns it in a form that is compiler-friendly
+analyze :: [Char] -> Sexpr
+analyze str = let result = p str
+              in case result of 
+                (Symbol s) -> Symbol s -- Parser returned an error
+                s -> car $ cdr $ cdr s
 
 data Value = VIntegral Int | VFloating Double | VString String deriving (Eq)
 
@@ -161,12 +172,17 @@ data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | 
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
+getStackValue (Frame xs) index = xs !! index
+
+getStackLength (Frame xs) = length xs
+
 extractQuotes xs = filter (\s -> s /= '\"') xs
 
 generatePush (Floating d) = Push (VFloating d)
 generatePush (Number i) = Push (VIntegral i)
 generatePush (Symbol s) = Push (VString (extractQuotes s))
 
+{-
 extractArgs :: Sexpr -> [Bytecode]
 extractArgs Nil = []
 extractArgs (Cons s s') = [generatePush s] ++ extractArgs s'
@@ -178,17 +194,43 @@ extractFunction line (Cons (Symbol "print!") s) = extractExpr line s ++ [PrintBa
 
 extractExpr line (Cons (Cons (Number i) (Cons (Symbol "+") s)) s') = [generatePush (Number i)] ++ extractExpr line s ++ [Add line]
 extractExpr line s = extractArgs s
+-}
+
+evalExpr :: Int -> Sexpr -> [Bytecode]
+evalExpr line (Cons (Symbol "end") s) = [End line]
+evalExpr line (Cons (Symbol "print") s) = evalExpr line s ++ [Print line]
+evalExpr line (Cons (Symbol "print!") s) = evalExpr line s ++ [PrintBang line]
+evalExpr line (Cons (Symbol "+") s) = evalExpr line s ++ [Add line]
+evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
+evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
+evalExpr line (Cons x@(Number i) s) = [generatePush x] ++ evalExpr line s
+evalExpr line (Cons x@(Floating f) s) = [generatePush x] ++ evalExpr line s
+evalExpr line (Cons x@(Symbol ('"':xs)) s) = [generatePush x] ++ evalExpr line s -- Symbol containing a quoted value
+--evalExpr line (Cons (Cons i s) s') = [generatePush i] ++ evalExpr line s ++ evalExpr line s'
+evalExpr line (Cons s s') = evalExpr line s ++ evalExpr line s'
+evalExpr line _ = []
 
 compile :: Sexpr -> [Bytecode] -> [Bytecode]
-compile Nil code = []
-compile (Cons (Number i) s) code = extractFunction i s
+compile (Cons (Number i) s) code = evalExpr i s -- For this one, (Number i) is the line number and s contains the function + args
 compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
 
+push :: Frame -> Value -> Frame
 push frame val = Frame $ (getStack frame) ++ [val]
 
-add (Frame ((VIntegral x):(VIntegral y):xs)) = VIntegral $ x + y
-add (Frame ((VFloating x):(VFloating y):xs)) = VFloating $ x + y
+pop :: Frame -> (Frame, Value)
+pop frame = let xs = reverse $ getStack frame
+                x = head xs
+            in (Frame $ reverse $ tail xs, x)
+
+add (VIntegral i) (VIntegral j) = VIntegral $ i + j
+add (VFloating i) (VFloating j) = VFloating $ i + j
+
+sub (VIntegral i) (VIntegral j) = VIntegral $ i - j
+sub (VFloating i) (VFloating j) = VFloating $ i - j
+
+mult (VIntegral i) (VIntegral j) = VIntegral $ i * j
+mult (VFloating i) (VFloating j) = VFloating $ i * j
 
 --print' (Frame []) = "\n"
 print' (Frame []) = putStrLn ""
@@ -205,9 +247,23 @@ vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
 vm program env [] frame = putStr ""
 vm program env ((Push a):rest) frame = vm program env rest (push frame a)
 vm program env ((Add l):rest) frame = do
-    let x = add frame
-    let f = push (Frame []) x
-    vm program env rest f
+    let (frame', x) = pop frame
+    let (frame'', y) = pop frame'
+    let result = add y x
+    let frame''' = push frame'' result
+    vm program env rest frame'''
+vm program env ((Sub l):rest) frame = do
+    let (frame', x) = pop frame
+    let (frame'', y) = pop frame'
+    let result = sub y x
+    let frame''' = push frame'' result
+    vm program env rest frame'''
+vm program env ((Mult l):rest) frame = do
+    let (frame', x) = pop frame
+    let (frame'', y) = pop frame'
+    let result = mult y x
+    let frame''' = push frame'' result
+    vm program env rest frame'''
 vm program env ((PrintBang l):rest) frame = do
     printBang frame
     vm program env rest (Frame [])
