@@ -172,7 +172,8 @@ updateEnv env str val = let x = findEnv env str
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
 data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
-                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Load {line :: Int} | Store {line :: Int} deriving (Show)
+                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Load {line :: Int} | Store {line :: Int} |
+                Input {line :: Int} deriving (Show)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
@@ -217,6 +218,7 @@ evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
 evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
 --evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
 evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
+evalExpr line (Cons (Symbol "input") s) = evalExpr line s ++ [Input line]
 evalExpr line (Cons x@(Number i) s) = generatePush line x ++ evalExpr line s
 evalExpr line (Cons x@(Floating f) s) = generatePush line x ++ evalExpr line s
 evalExpr line (Cons x@(Symbol xs) s) = generatePush line x ++ evalExpr line s -- Symbol containing a quoted value
@@ -233,7 +235,7 @@ load :: Frame -> Environment -> Frame
 load frame env = let (frame', (VString var)) = pop frame
                      val = findEnv env var
                  in case val of
-                    [] -> frame'
+                    [] -> frame
                     (x:xs) -> push frame' (snd x)
 
 store :: Frame -> Environment -> (Frame, Environment)
@@ -258,6 +260,32 @@ sub (VFloating i) (VFloating j) = VFloating $ i - j
 mult (VIntegral i) (VIntegral j) = VIntegral $ i * j
 mult (VFloating i) (VFloating j) = VFloating $ i * j
 
+inputHelper str = do
+    putStrLn (str ++ "?")
+    s <- getLine
+    return s
+
+input frame env = let (frame', (VString var)) = pop frame
+                      (frame'', (VString str)) = pop frame'
+                  in (do
+                    putStrLn (str ++ "?")
+                    s <- getLine
+                    let env' = updateEnv env var (VIntegral (read s :: Int))
+                    return (frame'', env')) 
+                    <|>
+                    (do
+                        putStrLn (str ++ "?")
+                        s <- getLine
+                        let env' = updateEnv env var (VFloating (read s :: Double))
+                        return (frame'', env'))
+                    <|>
+                    (do
+                        putStrLn (str ++ "?")
+                        s <- getLine
+                        let env' = updateEnv env var (VString s)
+                        return (frame'', env')) 
+
+
 --print' (Frame []) = "\n"
 print' (Frame []) = putStrLn ""
 print' (Frame (x:xs)) = do
@@ -271,7 +299,11 @@ printBang (Frame (x:xs)) = do
 
 vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
 vm program env [] frame = putStr ""
+vm program env ((End l):rest) frame = putStr ""
 vm program env ((Push a):rest) frame = vm program env rest (push frame a)
+vm program env ((Input l):rest) frame = do
+    (frame', env') <- input frame env
+    vm program env' rest frame'
 vm program env ((Load l):rest) frame = do
     let frame' = load frame env
     vm program env rest frame'
