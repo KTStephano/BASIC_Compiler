@@ -55,19 +55,29 @@ cdigit = do
     c <- sat isDigit
     return c
 
-integernum = do
+integernum = (do
     r <- many1 cdigit
-    return (read r :: Int)
+    return (read r :: Int)) +++
+    (do
+        s <- char '-'
+        r <- many1 cdigit
+        return (read ([s] ++ r) :: Int))
 
-number = do
+number = (do
     r <- many1 cdigit
     d <- symb "."
     l <- many1 cdigit
-    return (read (r ++ d ++ l) :: Double)
+    return (read (r ++ d ++ l) :: Double)) +++
+    (do
+        s <- char '-'
+        r <- many1 cdigit
+        d <- symb "."
+        l <- many1 cdigit
+        return (read ([s] ++ r ++ d ++ l) :: Double))
 
 misc = do
     r <- item--token item
-    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!']
+    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!', ':', '.']
     if (r `elem` miscVals) then return r else mzero
 
 first = misc +++ lower
@@ -114,15 +124,15 @@ e = ee +++ se +++ (do {res <- s; return $ Cons res Nil})
 
 --A :: Parser Sexpr
 a :: Parser Sexpr
-a = (do
-    s <- symbol
-    return $ Symbol s) +++
-        (do
+a =     (do
             n <- number
             return $ Floating n) +++
             (do
                 n <- integernum
-                return $ Number n)
+                return $ Number n) +++
+                (do
+                    s <- symbol
+                    return $ Symbol s)
 
 p str = let result = parse s str
         in if (result == []) then Symbol "Error parsing string"
@@ -145,6 +155,23 @@ pr3 = "(define pr '((100 print ((1 + 4) + (2 + 3)))))"
 
 lettest = "(define ltest '((100 let x = ((2 * 3) - (4 * (5 * 6))))" ++
                           "(200 print x)))"
+
+quadratic1 = "(define quadratic1 '(" ++
+    "(100 input \"What is the value of A\" a )" ++
+    "(110 input \"What is the value of B\" b )" ++
+    "(120 input \"What is the value of C\" c )" ++
+    "(130 let d = ((b * b) - (4.0 * (a * c))) )" ++
+    "(140 if (d < 0) then 230 )" ++ 
+    "(150 let i = 0 )" ++ 
+    "(160 let s = 1 )" ++
+    "(170 let s = ((s + (d / s)) / 2.0) )" ++
+    "(180 let i = (i + 1) )" ++
+    "(190 if (i < 10) then 170 )" ++
+    "(200 print \"The 1st root is: \" (((-1.0 * b) + s) / (2.0 * a)) )" ++ 
+    "(210 print \"The 2nd root is: \" (((-1.0 * b) - s) / (2.0 * a)) )" ++ 
+    "(220 end )" ++
+    "(230 print \"Imaginary roots.\" )" ++
+    "(240 end )))"
 
 -- Parses the string and returns it in a form that is compiler-friendly
 analyze :: [Char] -> Sexpr
@@ -176,9 +203,9 @@ updateEnv env str val = let x = findEnv env str
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
 data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
-                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Load {line :: Int} | Store {line :: Int} |
+                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Load {line :: Int} | Store {line :: Int} |
                 Input {line :: Int} | Equal {line :: Int} | NotEqual {line :: Int} | Greater {line :: Int} | 
-                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} deriving (Show)
+                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} deriving (Show)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
@@ -221,11 +248,15 @@ evalExpr line (Cons (Symbol "print!") s) = evalExpr line s ++ [PrintBang line]
 evalExpr line (Cons (Symbol "+") s) = evalExpr line s ++ [Add line]
 evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
 evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
+evalExpr line (Cons (Symbol "/") s) = evalExpr line s ++ [Div line]
 evalExpr line (Cons (Symbol "=") s) = evalExpr line s ++ [Equal line]
 evalExpr line (Cons (Symbol ">") s) = evalExpr line s ++ [Greater line]
 evalExpr line (Cons (Symbol "<") s) = evalExpr line s ++ [Less line]
 evalExpr line (Cons (Symbol "<=") s) = evalExpr line s ++ [LEqual line]
 evalExpr line (Cons (Symbol ">=") s) = evalExpr line s ++ [GEqual line]
+evalExpr line (Cons (Symbol "then") s) = evalExpr line s
+evalExpr line (Cons (Symbol "if") s) = evalExpr line s ++ [IfThen line]
+evalExpr line (Cons (Symbol "goto") s) = evalExpr line s ++ [Goto line]
 --evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
 evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
 evalExpr line (Cons (Symbol "input") s) = evalExpr line s ++ [Input line]
@@ -353,6 +384,9 @@ vm program env ((Sub l):rest) frame = do
     vm program env rest (push frame' val)
 vm program env ((Mult l):rest) frame = do
     let (frame', val) = arithmetic (*) frame
+    vm program env rest (push frame' val)
+vm program env ((Div l):rest) frame = do
+    let (frame', val) = arithmetic (/) frame
     vm program env rest (push frame' val)
 vm program env ((Equal l):rest) frame = do
     let (frame', val) = logical (==) frame
