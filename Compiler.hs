@@ -44,7 +44,7 @@ instance Show Value where
     show (VString s) = s
     show (VBool b) = show b
     show Null = "Null"
-    show (VSymbol vr vl) = show vl
+    show (VSymbol vr vl) = vr ++ "," ++ show vl
     show (VStatement s) = show s
 
 {-
@@ -191,6 +191,7 @@ evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
 evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
 evalExpr line (Cons (Symbol "/") s) = evalExpr line s ++ [Div line]
 evalExpr line (Cons (Symbol "=") s) = evalExpr line s ++ [Equal line]
+evalExpr line (Cons (Symbol "<>") s) = evalExpr line s ++ [NotEqual line]
 evalExpr line (Cons (Symbol ">") s) = evalExpr line s ++ [Greater line]
 evalExpr line (Cons (Symbol "<") s) = evalExpr line s ++ [Less line]
 evalExpr line (Cons (Symbol "<=") s) = evalExpr line s ++ [LEqual line]
