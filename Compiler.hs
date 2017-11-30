@@ -10,6 +10,24 @@ import Control.Monad
 import Control.Applicative hiding (many)
 import System.IO.Unsafe
 
+quadratic2 = "(define quadratic2 '(" ++
+    "(100 input \"What is the value of A\" a )" ++
+    "(110 input \"What is the value of B\" b )" ++
+    "(120 input \"What is the value of C\" c )" ++
+    "(130 let d = ((b * b) - (4.0 * (a * c))) )" ++
+    "(140 if (d < 0) then 190 )" ++
+    "(150 gosub 210 )" ++
+    "(160 print \"The 1st root is: \" (((-1.0 * b) + s) / (2.0 * a)) )" ++
+    "(170 print \"The 2nd root is: \" (((-1.0 * b) - s) / (2.0 * a)) )" ++
+    "(180 end )" ++
+    "(190 print \"Imaginary roots.\" )" ++
+    "(200 end )" ++
+    "(210 let s = 1 )" ++
+    "(220 for i = 1 to 10 )" ++
+    "(230 let s = ((s + (d / s)) / 2.0) )" ++
+    "(240 next i )" ++
+    "(250 return )))"
+
 data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
 car (Cons a b) = a
@@ -33,10 +51,11 @@ data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {li
                 Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Load {line :: Int} | Store {line :: Int} |
                 Input {line :: Int} | Equal {line :: Int} | NotEqual {line :: Int} | Greater {line :: Int} | 
                 GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} | IfThen {line :: Int} | 
-                Goto {line :: Int} deriving (Show, Eq)
+                Goto {line :: Int} | NextLine {line :: Int} | PushCallstack {line :: Int} |
+                PopCallstack {line :: Int} deriving (Show, Eq)
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
-             VBool Bool | VStatement [Bytecode] | Null deriving (Eq)
+             VBool Bool | VStatement [Bytecode] | Null | VPair (Value, Value) deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
@@ -199,6 +218,8 @@ evalExpr line (Cons (Symbol ">=") s) = evalExpr line s ++ [GEqual line]
 evalExpr line (Cons (Symbol "then") s) = evalStatement line s ++ [IfThen line]
 evalExpr line (Cons (Symbol "if") s) = evalExpr line s
 evalExpr line (Cons (Symbol "goto") s) = evalExpr line s ++ [Goto line]
+evalExpr line (Cons (Symbol "gosub") s) = evalExpr line s ++ [NextLine line] ++ [PushCallstack line] ++ [Goto line]
+evalExpr line (Cons (Symbol "return") s) = [PopCallstack line] ++ [Goto line]
 --evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
 evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
 evalExpr line (Cons (Symbol "input") s) = evalExpr line s ++ [Input line]
