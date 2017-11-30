@@ -153,12 +153,16 @@ analyze str = let result = p str
                 (Symbol s) -> Symbol s -- Parser returned an error
                 s -> car $ cdr $ cdr s
 
-data Value = VIntegral Int | VFloating Double | VString String deriving (Eq)
+data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
+             VBool Bool | Null deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
     show (VFloating d) = show d
     show (VString s) = s
+    show (VBool b) = show b
+    show Null = "Null"
+    show (VSymbol vr vl) = show vl
 
 newtype Environment = Environment {getEnv :: [(String, Value)]} deriving (Show, Eq)
 
@@ -171,9 +175,10 @@ updateEnv env str val = let x = findEnv env str
                         in if (x == []) then Environment $ (getEnv env) ++ [(str, val)]
                            else Environment $ (filter (\y -> y /= (x !! 0)) $ getEnv env) ++ [(str, val)]
 
-data Bytecode = End {line :: Int} | Push {arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
+data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
                 Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Load {line :: Int} | Store {line :: Int} |
-                Input {line :: Int} deriving (Show)
+                Input {line :: Int} | Equal {line :: Int} | NotEqual {line :: Int} | Greater {line :: Int} | 
+                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} deriving (Show)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
@@ -183,12 +188,12 @@ getStackLength (Frame xs) = length xs
 
 extractQuotes xs = filter (\s -> s /= '\"') xs
 
-generatePush line (Floating d) = [Push (VFloating d)]
-generatePush line (Number i) = [Push (VIntegral i)]
+generatePush line (Floating d) = [Push line (VFloating d)]
+generatePush line (Number i) = [Push line (VIntegral i)]
 -- This is a string constant, such as "hello"
-generatePush line (Symbol s@('"':xs)) = [Push (VString (extractQuotes s))]
+generatePush line (Symbol s@('"':xs)) = [Push line (VString (extractQuotes s))]
 -- This is probably a variable
-generatePush line (Symbol s) = [Push (VString s), Load line]
+generatePush line (Symbol s) = [Push line (VString s), Load line]
 
 {-
 extractArgs :: Sexpr -> [Bytecode]
@@ -207,7 +212,7 @@ extractExpr line s = extractArgs s
 -- Parses the Let statement
 evalLetArgs :: Int -> Sexpr -> [Bytecode]
 evalLetArgs line (Cons (Symbol "=") s) = evalExpr line s
-evalLetArgs line (Cons x@(Symbol s) s') = [Push (VString s)] ++ evalLetArgs line s'
+evalLetArgs line (Cons x@(Symbol s) s') = [Push line (VString s)] ++ evalLetArgs line s'
 
 evalExpr :: Int -> Sexpr -> [Bytecode]
 evalExpr line (Cons (Symbol "end") s) = [End line]
@@ -216,6 +221,11 @@ evalExpr line (Cons (Symbol "print!") s) = evalExpr line s ++ [PrintBang line]
 evalExpr line (Cons (Symbol "+") s) = evalExpr line s ++ [Add line]
 evalExpr line (Cons (Symbol "-") s) = evalExpr line s ++ [Sub line]
 evalExpr line (Cons (Symbol "*") s) = evalExpr line s ++ [Mult line]
+evalExpr line (Cons (Symbol "=") s) = evalExpr line s ++ [Equal line]
+evalExpr line (Cons (Symbol ">") s) = evalExpr line s ++ [Greater line]
+evalExpr line (Cons (Symbol "<") s) = evalExpr line s ++ [Less line]
+evalExpr line (Cons (Symbol "<=") s) = evalExpr line s ++ [LEqual line]
+evalExpr line (Cons (Symbol ">=") s) = evalExpr line s ++ [GEqual line]
 --evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
 evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
 evalExpr line (Cons (Symbol "input") s) = evalExpr line s ++ [Input line]
@@ -231,12 +241,18 @@ compile (Cons (Number i) s) code = evalExpr i s -- For this one, (Number i) is t
 compile (Cons s1 s2) code = (compile s1 code) ++ (compile s2 code)
 compile _ code = []
 
+printBytecode :: [Bytecode] -> IO ()
+printBytecode [] = putStr ""
+printBytecode (x:xs) = do
+    putStrLn (show x)
+    printBytecode xs
+
 load :: Frame -> Environment -> Frame
 load frame env = let (frame', (VString var)) = pop frame
                      val = findEnv env var
                  in case val of
-                    [] -> frame
-                    (x:xs) -> push frame' (snd x)
+                    [] -> push frame' (VSymbol var Null)
+                    (x:xs) -> push frame' (VSymbol (fst x) (snd x))
 
 store :: Frame -> Environment -> (Frame, Environment)
 store frame env = let (frame', val) = pop frame
@@ -251,6 +267,41 @@ pop frame = let xs = reverse $ getStack frame
                 x = head xs
             in (Frame $ reverse $ tail xs, x)
 
+unary' frame = pop frame
+
+unary frame = let (frame', val) = unary' frame
+              in case val of
+                (VSymbol s v) -> (frame', v)
+                s -> (frame', s)
+
+binary frame = let (frame', y) = unary frame
+                   (frame'', x) = unary frame'
+               in (frame'', (x, y))
+
+binary' frame = let (frame', y) = unary' frame
+                    (frame'', x) = unary' frame'
+                in (frame'', (x, y))
+
+logical op frame = let (frame', (x, y)) = binary frame
+                   in case (x, y) of
+                     ((VIntegral i), (VIntegral ii)) -> (frame', VBool $ op (fromIntegral i) (fromIntegral ii))
+                     ((VIntegral i), (VFloating ii)) -> (frame', VBool $ op (fromIntegral i) ii)
+                     ((VFloating i), (VIntegral ii)) -> (frame', VBool $ op i (fromIntegral ii))
+                     ((VFloating i), (VFloating ii)) -> (frame', VBool $ op i ii)
+
+arithmetic op frame = let (frame', (x, y)) = binary frame
+                      in case (x, y) of
+                        ((VIntegral i, VIntegral ii)) -> (frame', VIntegral $ round $ op (fromIntegral i) (fromIntegral ii))
+                        ((VFloating i, VFloating ii)) -> (frame', VFloating $ op i ii)
+                        ((VIntegral i), (VFloating ii)) -> (frame', VFloating $ op (fromIntegral i) ii)
+                        ((VFloating i), (VIntegral ii)) -> (frame', VFloating $ op i (fromIntegral ii))
+                        ((VIntegral i), (VString s)) -> (frame', VFloating $ op (fromIntegral i) (read s :: Double))
+                        ((VString s), (VIntegral i)) -> (frame', VFloating $ op (read s :: Double) (fromIntegral i))
+                        ((VFloating i), (VString s)) -> (frame', VFloating $ op i (read s :: Double))
+                        ((VString s), (VFloating i)) -> (frame', VFloating $ op (read s :: Double) i)
+                        ((VString s), (VString s')) -> (frame', VFloating $ op (read s :: Double) (read s' :: Double))
+
+{-
 add (VIntegral i) (VIntegral j) = VIntegral $ i + j
 add (VFloating i) (VFloating j) = VFloating $ i + j
 
@@ -259,31 +310,15 @@ sub (VFloating i) (VFloating j) = VFloating $ i - j
 
 mult (VIntegral i) (VIntegral j) = VIntegral $ i * j
 mult (VFloating i) (VFloating j) = VFloating $ i * j
+-}
 
-inputHelper str = do
-    putStrLn (str ++ "?")
-    s <- getLine
-    return s
-
-input frame env = let (frame', (VString var)) = pop frame
+input frame env = let (frame', (VSymbol var _)) = pop frame
                       (frame'', (VString str)) = pop frame'
-                  in (do
-                    putStrLn (str ++ "?")
-                    s <- getLine
-                    let env' = updateEnv env var (VIntegral (read s :: Int))
-                    return (frame'', env')) 
-                    <|>
-                    (do
-                        putStrLn (str ++ "?")
-                        s <- getLine
-                        let env' = updateEnv env var (VFloating (read s :: Double))
-                        return (frame'', env'))
-                    <|>
-                    (do
+                  in do
                         putStrLn (str ++ "?")
                         s <- getLine
                         let env' = updateEnv env var (VString s)
-                        return (frame'', env')) 
+                        return (frame'', env')
 
 
 --print' (Frame []) = "\n"
@@ -300,7 +335,7 @@ printBang (Frame (x:xs)) = do
 vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
 vm program env [] frame = putStr ""
 vm program env ((End l):rest) frame = putStr ""
-vm program env ((Push a):rest) frame = vm program env rest (push frame a)
+vm program env ((Push l a):rest) frame = vm program env rest (push frame a)
 vm program env ((Input l):rest) frame = do
     (frame', env') <- input frame env
     vm program env' rest frame'
@@ -311,23 +346,32 @@ vm program env ((Store l):rest) frame = do
     let (frame', env') = store frame env
     vm program env' rest frame'
 vm program env ((Add l):rest) frame = do
-    let (frame', x) = pop frame
-    let (frame'', y) = pop frame'
-    let result = add y x
-    let frame''' = push frame'' result
-    vm program env rest frame'''
+    let (frame', val) = arithmetic (+) frame
+    vm program env rest (push frame' val)
 vm program env ((Sub l):rest) frame = do
-    let (frame', x) = pop frame
-    let (frame'', y) = pop frame'
-    let result = sub y x
-    let frame''' = push frame'' result
-    vm program env rest frame'''
+    let (frame', val) = arithmetic (-) frame
+    vm program env rest (push frame' val)
 vm program env ((Mult l):rest) frame = do
-    let (frame', x) = pop frame
-    let (frame'', y) = pop frame'
-    let result = mult y x
-    let frame''' = push frame'' result
-    vm program env rest frame'''
+    let (frame', val) = arithmetic (*) frame
+    vm program env rest (push frame' val)
+vm program env ((Equal l):rest) frame = do
+    let (frame', val) = logical (==) frame
+    vm program env rest (push frame' val)
+vm program env ((NotEqual l):rest) frame = do
+    let (frame', val) = logical (/=) frame
+    vm program env rest (push frame' val)
+vm program env ((Greater l):rest) frame = do
+    let (frame', val) = logical (>) frame
+    vm program env rest (push frame' val)
+vm program env ((Less l):rest) frame = do
+    let (frame', val) = logical (<) frame
+    vm program env rest (push frame' val)
+vm program env ((GEqual l):rest) frame = do
+    let (frame', val) = logical (>=) frame
+    vm program env rest (push frame' val)
+vm program env ((LEqual l):rest) frame = do
+    let (frame', val) = logical (<=) frame
+    vm program env rest (push frame' val)
 vm program env ((PrintBang l):rest) frame = do
     printBang frame
     vm program env rest (Frame [])
