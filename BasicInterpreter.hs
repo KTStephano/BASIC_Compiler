@@ -181,7 +181,7 @@ analyze str = let result = p str
                 s -> car $ cdr $ cdr s
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
-             VBool Bool | Null deriving (Eq)
+             VBool Bool | VStatement [Bytecode] | Null deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
@@ -190,6 +190,7 @@ instance Show Value where
     show (VBool b) = show b
     show Null = "Null"
     show (VSymbol vr vl) = show vl
+    show (VStatement s) = show s
 
 newtype Environment = Environment {getEnv :: [(String, Value)]} deriving (Show, Eq)
 
@@ -205,7 +206,8 @@ updateEnv env str val = let x = findEnv env str
 data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
                 Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Load {line :: Int} | Store {line :: Int} |
                 Input {line :: Int} | Equal {line :: Int} | NotEqual {line :: Int} | Greater {line :: Int} | 
-                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} deriving (Show)
+                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} | IfThen {line :: Int} | 
+                Goto {line :: Int} deriving (Show, Eq)
 
 data Frame = Frame {getStack :: [Value]} deriving (Show)
 
@@ -241,6 +243,11 @@ evalLetArgs :: Int -> Sexpr -> [Bytecode]
 evalLetArgs line (Cons (Symbol "=") s) = evalExpr line s
 evalLetArgs line (Cons x@(Symbol s) s') = [Push line (VString s)] ++ evalLetArgs line s'
 
+-- Returns bytecode that pushes a VStatement onto the stack for later execution
+evalStatement :: Int -> Sexpr -> [Bytecode]
+evalStatement line (Cons (Number i) Nil) = [Push line (VStatement [Push line (VIntegral i), Goto line])]
+evalStatement line s = [Push line $ VStatement $ evalExpr line s]
+
 evalExpr :: Int -> Sexpr -> [Bytecode]
 evalExpr line (Cons (Symbol "end") s) = [End line]
 evalExpr line (Cons (Symbol "print") s) = evalExpr line s ++ [Print line]
@@ -254,8 +261,8 @@ evalExpr line (Cons (Symbol ">") s) = evalExpr line s ++ [Greater line]
 evalExpr line (Cons (Symbol "<") s) = evalExpr line s ++ [Less line]
 evalExpr line (Cons (Symbol "<=") s) = evalExpr line s ++ [LEqual line]
 evalExpr line (Cons (Symbol ">=") s) = evalExpr line s ++ [GEqual line]
-evalExpr line (Cons (Symbol "then") s) = evalExpr line s
-evalExpr line (Cons (Symbol "if") s) = evalExpr line s ++ [IfThen line]
+evalExpr line (Cons (Symbol "then") s) = evalStatement line s ++ [IfThen line]
+evalExpr line (Cons (Symbol "if") s) = evalExpr line s
 evalExpr line (Cons (Symbol "goto") s) = evalExpr line s ++ [Goto line]
 --evalExpr line (Cons (Cons (Symbol "let") s) s') = evalLetArgs line s' ++ [Let line]
 evalExpr line (Cons (Symbol "let") s) = evalLetArgs line s ++ [Store line]
