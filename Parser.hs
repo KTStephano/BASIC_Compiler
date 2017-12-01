@@ -4,7 +4,7 @@ import Control.Monad
 import Control.Applicative hiding (many)
 
 data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr |
-             Statement String Sexpr | Line Int Sexpr | Statements [Sexpr] |
+             Statement String Sexpr | Line Int Sexpr | Lines [Sexpr] | Statements [Sexpr] |
              Expression String Sexpr | ExpressionList [Sexpr] | Variable Sexpr | 
              Array' String Sexpr | Function String Sexpr | Constant Sexpr | ID String | 
              Value Sexpr | IDList [Sexpr] | ArrayList [Sexpr] deriving (Eq)
@@ -26,6 +26,7 @@ instance Show Sexpr where
     show (Line i s) = show i ++ ": " ++ show s
     show (IDList s) = "{IDList: " ++ show s ++ "}"
     show (ArrayList s) = "{ArrayList: " ++ show s ++ "}"
+    show (Lines s) = show s
     show Nil = "()"
     show (Cons x y) = "(" ++ show x ++ showCdr y ++ ")"
 
@@ -60,7 +61,8 @@ floating = (do {s <- symb "-"; i <- many cdigit; d <- char '.'; r <- many cdigit
 
 line = do {symb "("; i <- integer'; s <- statements; symb ")"; return $ Line i s}
 
-lines' = (do {l <- line; ls <- lines'; return $ Cons l ls}) +++ line
+lines' = (do {l <- line; (Lines ls) <- lines'; return $ Lines ([l] ++ ls)}) +++
+         (do {l <- line; return $ Lines [l]})
 
 statements = (do {s <- statement; symb ":"; (Statements xs) <- statements; return $ Statements $ [s] ++ xs}) +++
              (do {s <- statement; return $ Statements [s]})
@@ -121,6 +123,7 @@ if' = do
 input = do
     i <- symb "INPUT"
     s <- string'
+    symb ";"
     ids <- idList
     return $ Statement i (list (Symbol s) ids)
 
@@ -218,17 +221,33 @@ array' = do {i <- iD; e <- expression; return $ Array' [i] $ ExpressionList [e]}
 function = (do {s <- symb "INT"; symb "("; e <- expression; symb ")"; return $ Function s e}) +++
            (do {s <- symb "RND"; symb "("; e <- expression; symb ")"; return $ Function s e})
 
-constant = (do {f <- floating; return $ Constant $ Floating f}) +++
-           (do {i <- integer'; return $ Constant $ Number i}) +++
-           (do {s <- string'; return $ Constant $ Symbol s})
+constant = (do {s <- string'; return $ Constant $ Symbol s}) +++
+           (do {f <- floating; return $ Constant $ Floating f}) +++
+           (do {i <- integer'; return $ Constant $ Number i})
 
 misc = do
     r <- item--token item
     let miscVals = "<>^+-*/=!:."
     if (r `elem` miscVals) then return r else mzero
 
+printLines (Lines []) = putStr ""
+printLines (Lines (x:xs)) = do
+    putStrLn (show x)
+    printLines $ Lines xs
+
 analyze str = let str' = map toUpper str
                   parsed = parse lines' str'
               in if (parsed == []) then Symbol "Error parsing input"
                  else fst $ parsed !! 0
 
+foo = "(10 INPUT \"WHAT IS THE VALUE OF X\"; X) \
+      \(20 INPUT \"WHAT IS THE VALUE OF Y\"; Y) \
+      \(25 PRINT \"THE GCD OF \"; X; \" AND \"; Y; \" IS \") \
+      \(30 IF X = Y THEN 90) \
+      \(40 IF X < Y THEN 70) \
+      \(50 LET X = X - Y) \
+      \(60 GOTO 30) \
+      \(70 LET Y = Y - X)\
+      \(80 GOTO 30)\
+      \(90 PRINT X)\
+      \(95 END)"
