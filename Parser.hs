@@ -7,22 +7,25 @@ data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sex
              Statement String Sexpr | Line Int Sexpr | Statements [Sexpr] |
              Expression String Sexpr | ExpressionList [Sexpr] | Variable Sexpr | 
              Array' String Sexpr | Function String Sexpr | Constant Sexpr | ID String | 
-             Value Sexpr deriving (Eq)
+             Value Sexpr | IDList [Sexpr] | ArrayList [Sexpr] deriving (Eq)
 
 instance Show Sexpr where
     show (Symbol x) = x
     show (Number x) = show x
     show (Floating x) = show x
-    show (Statement s s') = "{Statement: " ++ s ++ show s' ++ "}"
-    show (Expression s e) = "{Expression: " ++ s ++ show e ++ "}"
+    show (Statement s s') = "{Statement: " ++ s ++ " -> " ++ show s' ++ "}"
+    show (Expression s e) = "{Expression: " ++ s ++ " -> " ++ show e ++ "}"
     show (Constant c) = show c
     show (Statements s) = show s
     show (ExpressionList es) = show es
     show (Variable s) = "{Var: " ++ show s ++ "}"
-    show (Array' s s') = "{Array: " ++ s ++ show s' ++ "}"
-    show (Function s s') = "{Function: " ++ s ++ show s' ++ "}"
+    show (Array' s s') = "{Array: " ++ s ++ " -> " ++ show s' ++ "}"
+    show (Function s s') = "{Function: " ++ s ++ " -> " ++ show s' ++ "}"
     show (ID s) = "{ID: " ++ s ++ "}"
     show (Value s) = "{Value: " ++ show s ++ "}"
+    show (Line i s) = show i ++ ": " ++ show s
+    show (IDList s) = "{IDList: " ++ show s ++ "}"
+    show (ArrayList s) = "{ArrayList: " ++ show s ++ "}"
     show Nil = "()"
     show (Cons x y) = "(" ++ show x ++ showCdr y ++ ")"
 
@@ -37,12 +40,13 @@ string' = do
     char '"'
     s <- (many stringChars)
     symb "\""
+    return ("\"" ++ s ++ "\"")
 
 stringChars = alphanum +++ (sat isSpace) +++ misc
 
 newline = do {symb "\n"} +++ do {symb "\r"}
 
-iD = letter
+iD = token letter
 
 cdigit = do 
     c <- sat isDigit
@@ -54,14 +58,90 @@ integer' = token (do {s <- symb "-"; i <- many cdigit; return (read (s ++ i) :: 
 floating = (do {s <- symb "-"; i <- many cdigit; d <- char '.'; r <- many cdigit; return (read (s ++ i ++ [d] ++ r) :: Double)}) +++
            (do {i <- many cdigit; d <- char '.'; r <- many cdigit;  return (read (i ++ [d] ++ r) :: Double)})
 
-line = do {i <- integer'; s <- statements; newline; return $ Line i s}
+line = do {symb "("; i <- integer'; s <- statements; symb ")"; return $ Line i s}
 
 lines' = (do {l <- line; ls <- lines'; return $ Cons l ls}) +++ line
 
 statements = (do {s <- statement; symb ":"; (Statements xs) <- statements; return $ Statements $ [s] ++ xs}) +++
              (do {s <- statement; return $ Statements [s]})
 
-statement = print'
+statement = dim +++ end +++ for +++ gotos +++ if' +++ input +++ let' +++ next +++ print' +++ return' +++ setVar
+
+dim = do
+    d <- symb "DIM"
+    al <- arrayList
+    return $ Statement d al
+
+end = do
+    d <- symb "END"
+    return $ Statement d Nil
+
+for = (do
+    f <- symb "FOR"
+    i <- iD
+    symb "="
+    ts <- to
+    return $ Statement f (list (Symbol [i]) ts)) +++
+    (do
+        f <- symb "FOR"
+        i <- iD
+        symb "="
+        ts <- to
+        s <- step
+        return $ Statement f $ Cons (Symbol [i]) (Cons ts (Cons s Nil)))
+
+to = do
+    e <- expression
+    t <- symb "TO"
+    e' <- expression
+    return $ Statement t (list e e')
+
+step = do
+    s <- symb "STEP"
+    e <- expression
+    return $ Statement s e
+
+-- Any function which operates on a single integer
+gotos = do
+    g <- (symb "GOTO" +++ symb "GOSUB")
+    i <- integer'
+    return $ Statement g (Number i)
+
+then' = do
+    t <- symb "THEN"
+    i <- integer'
+    return $ Statement t (Number i)
+
+if' = do
+    i <- symb "IF"
+    e <- expression
+    t <- then'
+    return $ Statement i (list e t)
+
+input = do
+    i <- symb "INPUT"
+    s <- string'
+    ids <- idList
+    return $ Statement i (list (Symbol s) ids)
+
+next = do
+    n <- symb "NEXT"
+    ids <- idList
+    return $ Statement n ids
+
+return' = do
+    r <- symb "RETURN"
+    return $ Statement r Nil
+
+let' = do
+    l <- symb "LET"
+    v <- variable
+    symb "="
+    e <- expression
+    return $ Statement l (list v e)
+
+-- for something like x = 1
+setVar = Parser (\s -> parse let' ("LET" ++ s))
 
 print' = do
     p <- symb "PRINT"
@@ -79,8 +159,14 @@ expression = (do
 expressionList = (do {e <- expression; symb ","; (ExpressionList es) <- expressionList; return $ ExpressionList ([e] ++ es)}) +++
                  (do {e <- expression; return $ ExpressionList [e]})
 
+idList = (do {i <- iD; (IDList ids) <- idList; return $ IDList ([ID [i]] ++ ids)}) +++
+         (do {i <- iD; return $ IDList [ID [i]]})
+
 printList = (do {e <- expression; (symb "," +++ symb ";"); (ExpressionList es) <- printList; return $ ExpressionList ([e] ++ es)}) +++
             (do {e <- expression; return $ ExpressionList [e]})
+
+arrayList = (do {a <- array'; (ArrayList as) <- arrayList; return $ ArrayList ([a] ++ as)}) +++ 
+            (do {a <- array'; return $ ArrayList [a]})
 
 andExp = (do
     n <- notExp
@@ -140,3 +226,9 @@ misc = do
     r <- item--token item
     let miscVals = "<>^+-*/=!:."
     if (r `elem` miscVals) then return r else mzero
+
+analyze str = let str' = map toUpper str
+                  parsed = parse lines' str'
+              in if (parsed == []) then Symbol "Error parsing input"
+                 else fst $ parsed !! 0
+
