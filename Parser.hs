@@ -214,9 +214,15 @@ value = (do {symb "("; e <- expression; symb ")"; return $ Value e}) +++
         (do {f <- function; return $ Value f}) +++
         (do {c <- constant; return $ Value c})
 
-variable = (do {i <- iD; return $ Variable $ ID [i]}) +++ (do {a <- array'; return $ Variable a})
+variable = (do {a <- array'; return $ Variable a}) +++ (do {i <- iD; return $ Variable $ ID [i]})
 
-array' = do {i <- iD; e <- expression; return $ Array' [i] $ ExpressionList [e]}
+--array' = do {i <- iD; e <- expression; return $ Array' [i] $ ExpressionList [e]}
+array' = do
+    i <- iD;
+    symb "("
+    e <- expressionList
+    symb ")"
+    return $ Array' [i] e
 
 function = (do {s <- symb "INT"; symb "("; e <- expression; symb ")"; return $ Function s e}) +++
            (do {s <- symb "RND"; symb "("; e <- expression; symb ")"; return $ Function s e})
