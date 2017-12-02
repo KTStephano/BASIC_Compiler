@@ -2,7 +2,7 @@ module Compiler
 (Sexpr(Symbol, Number, Floating, Nil, Cons), 
  Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, Null), 
  Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto), 
- analyze, car, cdr, compile, printBytecode) where
+ analyze, car, cdr, compile, printBytecode, line) where
 
 import Parselib
 import Data.Char
