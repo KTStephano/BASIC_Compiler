@@ -98,7 +98,7 @@ instance Show Value where
 {symbol} ::= {first} {symbolic}* | {string}
 {first} ::= {misc} | {lower}
 {symbolic} ::= {first} | {digit}
-{misc} ::= ’<’ | ’>’ | ’ˆ’ | ’+’ | ’-’ | ’*’ | ’/’ | ’=’
+{misc} ::= '<' | '>' | '^' | '+' | '-' | '*' | '/' | '='
 {integernum} ::= {digit}+
 {number} ::= {digit}+ . {digit}+
 S ::= () | (E) | '(E) | A | (S . S)
