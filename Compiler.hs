@@ -1,7 +1,7 @@
 module Compiler
 (Sexpr(Symbol, Number, Floating, Nil, Cons), 
  Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, Null), 
- Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine), 
+ Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log), 
  analyze, car, cdr, compile, printBytecode, line) where
 
 import Parselib
