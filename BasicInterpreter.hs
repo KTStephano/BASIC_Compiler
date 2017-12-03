@@ -34,11 +34,29 @@ goCheck = "(define gotest '((100 print 5)" ++
                            "(200 print 10)" ++
                            "(300 goto 500)" ++
                            "(400 print 100000)" ++
-                           "(500 print 1)))"
+                           "(500 print 1)" ++
+                           "(600 print 3.14)))"
 
-                           --"(300 if (x > 0) then goto 500)" ++
-                          -- "(300 print 100)" ++
-                          -- "(500 if (x < 0) goto 400)))"
+subCheck = "(define subtest '((100 print \"hi\")" ++
+                            "(200 print 27)" ++
+                            "(300 gosub 500)" ++
+                            "(400 end)" ++
+                            "(500 print 3.14)" ++
+                            "(600 let z = 5)" ++
+                            "(700 print z)" ++
+                            "(800 print 1000)" ++
+                            "(900 print 2000)" ++
+                            "(1000 return)))"
+
+subCheck2 = "(define subtestt '((100 print \"hi\")" ++
+                            "(200 print 27)" ++
+                            "(300 gosub 600)" ++
+                            "(400 print 111)" ++
+                            "(500 end)" ++
+                            "(600 print 3.14)" ++
+                            "(700 print \"Whats up\")" ++
+                            "(700 return)))"
+
 
 quadratic1 = "(define quadratic1 '(" ++
     "(100 input \"What is the value of A\" a )" ++
@@ -183,80 +201,89 @@ printBang (Frame (x:xs)) = do
 --same but adition of callstack
 --callstack is another frame
 --start as emput but popcallstacck,pushcallstck, then change our focus rto callstack frame
-vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> IO ()
-vm program env [] frame = putStr ""
-vm program env ((End l):rest) frame = putStr ""
-vm program env ((Push l a):rest) frame = vm program env rest (push frame a)
-vm program env ((Input l):rest) frame = do
+vm :: [Bytecode] -> Environment -> [Bytecode] -> Frame -> Frame -> IO ()
+vm program env [] frame outFrame = putStr ""
+vm program env ((End l):rest) frame outFrame = putStr ""
+vm program env ((Push l a):rest) frame outFrame = vm program env rest (push frame a) outFrame
+vm program env ((Input l):rest) frame outFrame = do
     (frame', env') <- input frame env
-    vm program env' rest frame'
-vm program env ((Load l):rest) frame = do
+    vm program env' rest frame' outFrame
+vm program env ((Load l):rest) frame outFrame = do
     let frame' = load frame env
-    vm program env rest frame'
-vm program env ((Store l):rest) frame = do
+    vm program env rest frame' outFrame
+vm program env ((Store l):rest) frame outFrame = do
     let (frame', env') = store frame env
-    vm program env' rest frame'
-vm program env ((Add l):rest) frame = do
+    vm program env' rest frame' outFrame
+vm program env ((Add l):rest) frame outFrame = do
     let (frame', val) = arithmetic (+) frame
-    vm program env rest (push frame' val)
-vm program env ((Sub l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Sub l):rest) frame outFrame = do
     let (frame', val) = arithmetic (-) frame
-    vm program env rest (push frame' val)
-vm program env ((Mult l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Mult l):rest) frame outFrame = do
     let (frame', val) = arithmetic (*) frame
-    vm program env rest (push frame' val)
-vm program env ((Div l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Div l):rest) frame outFrame = do
     let (frame', val) = arithmetic (/) frame
-    vm program env rest (push frame' val)
-vm program env ((Equal l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Equal l):rest) frame outFrame = do
     let (frame', val) = logical (==) frame
-    vm program env rest (push frame' val)
-vm program env ((NotEqual l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((NotEqual l):rest) frame outFrame = do
     let (frame', val) = logical (/=) frame
-    vm program env rest (push frame' val)
-vm program env ((Greater l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Greater l):rest) frame outFrame= do
     let (frame', val) = logical (>) frame
     --print (frame', val)
-    vm program env rest (push frame' val)
-vm program env ((Less l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((Less l):rest) frame outFrame = do
     let (frame', val) = logical (<) frame
-    vm program env rest (push frame' val)
-vm program env ((GEqual l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((GEqual l):rest) frame outFrame = do
     let (frame', val) = logical (>=) frame
-    vm program env rest (push frame' val)
-vm program env ((LEqual l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((LEqual l):rest) frame outFrame = do
     let (frame', val) = logical (<=) frame
-    vm program env rest (push frame' val)
-vm program env ((IfThen l):rest) frame = do
+    vm program env rest (push frame' val) outFrame
+vm program env ((PushCallstack l):rest) frame outFrame = do
+    let (frame', val) = test frame
+    vm program env rest frame' (push frame val)
+vm program env ((PopCallstack l):rest) frame outFrame = do
+    let (frame', val) = unary' outFrame
+    vm program env rest (push frame val) (Frame [])
+vm program env ((IfThen l):rest) frame outFrame = do
     let (frame',res) = getStatement frame
-    vm program env (res ++ rest) frame'    
-vm program env ((Goto l):rest) frame = do
+    vm program env (res ++ rest) frame' outFrame
+vm program env ((Goto l):rest) frame outFrame= do
   let (frame',num) = getLineNum frame
-      newRest = subProgram program num
-  vm program env newRest frame'
-vm program env ((PrintBang l):rest) frame = do
+      newRest = newProgram program num False
+  vm program env newRest frame' outFrame
+vm program env ((PrintBang l):rest) frame outFrame= do
     printBang frame
-    vm program env rest (Frame [])
-vm program env ((Print l):rest) frame = do
+    vm program env rest (Frame []) outFrame
+vm program env ((Print l):rest) frame outFrame= do
     print' frame
-    vm program env rest (Frame [])
+    vm program env rest (Frame []) outFrame
 
---This should return the rest of the programs byte code
---findLine program line = line
 
-subProgram [] _ = []
-subProgram (x:xs) l = if line x == l then x:(subProgram xs l) else subProgram xs l
+test frame = let (frame', x) = unary frame in (frame', x)
+
+newProgram [] _ _ = []
+newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l True) else newProgram xs l b
 
 getLineNum frame = let (frame', VIntegral line) = unary frame in (frame', line)
 
 getStatement frame = let (frame',((VBool x),(VStatement ys))) = binary frame in
                 if x then (frame', ys)
                 else (frame', [])
-
-
-
 {-
 stuff that doesnt work but might mess with
+
+vm program env ((GoSub l):rest) frame = do
+  let (frame',num) = getLineNum frame
+      goSub = createGoSub program num
+  vm program env (goSub ++ rest) frame'
+
 {-
 getIt frame = let (frame', (x, y)) = binary frame
                       in case (x, y) of
