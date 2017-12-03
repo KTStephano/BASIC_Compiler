@@ -335,15 +335,16 @@ next = do
     return $ Statement n i
 
 print' :: ParseTree Basic
-print' = (do
-    (Symbol p) <- (string' "print" `mplus` string' "print!")
-    es <- expressionList
-    return $ Statement p es) `mplus`
+print' = 
     (do
         (Symbol p) <- (string' "print" `mplus` string' "print!")
         t <- tab
         (ExpressionList es) <- expressionList
-        return $ Statement p $ ExpressionList ([t] ++ es))
+        return $ Statement p $ ExpressionList ([t] ++ es)) `mplus`
+    (do
+        (Symbol p) <- (string' "print" `mplus` string' "print!")
+        es <- expressionList
+        return $ Statement p es)
 
 return' :: ParseTree Basic
 return' = do
