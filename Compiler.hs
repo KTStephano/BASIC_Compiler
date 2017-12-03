@@ -55,6 +55,8 @@ quadratic2 = "(define quadratic2 '(" ++
     "(250 return )" ++
     "(260 i = 2)))"
 
+guess = "(define guess '( (100 print tab(33) \"GUESS\" ) (110 print tab(15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (120 print ) (130 print \"THIS IS A NUMBER GUESSING GAME. I'LL THINK\" ) (140 print \"OF A NUMBER BETWEEN 1 AND ANY LIMIT YOU WANT.\" ) (150 print \"THEN YOU HAVE TO GUESS WHAT IT IS.\" ) (160 print ) (170 input \"WHAT LIMIT DO YOU WANT\" l ) (180 print ) (190 let l1 = int (((log (l) / log (2)) + 1)) ) (200 print \"I'M THINKING OF A NUMBER BETWEEN 1 AND \" l ) (210 let g = 1 ) (220 let m = int (((l * rnd (1)) + 1)) ) (230 print ) (240 input \"WHAT IS YOUR GUESS\" n ) (250 print ) (260 if (n > 0) then 290 ) (270 print \"ILLEGAL VALUE.\" ) (280 goto 230 ) (290 if (n <= l) then 320 ) (300 print \"ILLEGAL VALUE.\" ) (310 goto 230 ) (320 if (n = m) then 390 ) (330 let g = (g + 1) ) (340 if (n > m) then 370 ) (350 print \"TOO LOW. TRY A BIGGER ANSWER.\" ) (360 goto 230 ) (370 print \"TOO HIGH. TRY A SMALLER ANSWER.\" ) (380 goto 230 ) (390 print \"THAT'S IT! YOU GOT IT IN \" g \" TRIES.\" ) (400 if (g < l1) then 440 ) (410 if (g = l1) then 450 ) (420 print \"YOU SHOULD HAVE BEEN ABLE TO GET IT IN ONLY \" l1 \" TRIES.\" ) (430 end ) (440 print! \"VERY \" ) (450 print \"GOOD.\" ) (460 end )))"
+
 data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
 car (Cons a b) = a
@@ -75,11 +77,12 @@ showCdr (Cons x y) = " " ++ show x ++ " . " ++ show y
 showCdr x = " . " ++ show x
 
 data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
-                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Load {line :: Int} | Store {line :: Int} |
-                Input {line :: Int} | Equal {line :: Int} | NotEqual {line :: Int} | Greater {line :: Int} | 
-                GEqual {line :: Int} | Less {line :: Int} | LEqual {line :: Int} | IfThen {line :: Int} | 
-                Goto {line :: Int} | NextLine {line :: Int} | PushCallstack {line :: Int} |
-                PopCallstack {line :: Int} deriving (Show, Eq)
+                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Pow {line :: Int} |
+                Load {line :: Int} | Store {line :: Int} | Input {line :: Int} | Equal {line :: Int} | 
+                NotEqual {line :: Int} | Greater {line :: Int} | GEqual {line :: Int} | Less {line :: Int} | 
+                LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} | NextLine {line :: Int} | 
+                PushCallstack {line :: Int} | PopCallstack {line :: Int} | Spaces {line :: Int} | CastInt {line :: Int} |
+                Rand {line :: Int} | Log {line :: Int} deriving (Show, Eq)
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | Null | VPair (Value, Value) deriving (Eq)
@@ -141,7 +144,7 @@ number = (do
 
 misc = do
     r <- item--token item
-    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!', ':', '.']
+    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!', ':', '.', '\'', ',']
     if (r `elem` miscVals) then return r else mzero
 
 first = misc +++ lower
@@ -253,7 +256,7 @@ symb' cs = do {i <- item'; if cs == i then return i else mzero}
 iD = do
     (Symbol (s:ss)) <- item'
     if s == '"' then mzero
-    else return $ Variable $ String' [s]
+    else return $ Variable $ String' (s:ss)
 
 basicString =
     do
@@ -344,7 +347,10 @@ print' =
     (do
         (Symbol p) <- (string' "print" `mplus` string' "print!")
         es <- expressionList
-        return $ Statement p es)
+        return $ Statement p es) `mplus`
+    (do
+        (Symbol p) <- (string' "print" `mplus` string' "print!")
+        return $ Statement p None)
 
 return' :: ParseTree Basic
 return' = do
@@ -389,16 +395,22 @@ addExp =
     (do
         m <- value
         (Symbol op) <- item'
-        if (op `elem` ["+", "-", "*", "/", "=", "<>", ">", ">=", "<", "<="]) then do
+        if (op `elem` ["+", "-", "*", "^", "/", "=", "<>", ">", ">=", "<", "<="]) then do
             a <- addExp
             return $ Expression op $ ExpressionList [m, a]
             else mzero) `mplus` value
 
-value = optimization `mplus` variable `mplus` function `mplus` constant
+value = optimization `mplus` function `mplus` variable `mplus` constant
 
 variable = iD
 
-function = (do {(Symbol i) <- string' "int"; e <- expression; return $ Function i e})
+function = 
+    do 
+        (Symbol i) <- item'
+        if (i `elem` ["int", "rnd", "log"]) then do
+            e <- optimization
+            return $ Function i e
+            else mzero
 
 constant = (do {(Number i) <- item'; return $ Constant $ Integer' i}) `mplus`
            (do {(Floating f) <- item'; return $ Constant $ Floating' f}) `mplus`
@@ -441,16 +453,21 @@ evalExpressionList line (ExpressionList (x:xs)) mapping = evalExpression line x 
                                                           evalExpressionList line (ExpressionList xs) mapping
 
 -- evalExpression deals with things like arithmetic and addition
+evalExpression line None mapping = []
 evalExpression line (Expression "+" rest) mapping = evalExpression line rest mapping ++ [Add line]
 evalExpression line (Expression "-" rest) mapping = evalExpression line rest mapping ++ [Sub line]
 evalExpression line (Expression "*" rest) mapping = evalExpression line rest mapping ++ [Mult line]
 evalExpression line (Expression "/" rest) mapping = evalExpression line rest mapping ++ [Div line]
+evalExpression line (Expression "^" rest) mapping = evalExpression line rest mapping ++ [Pow line]
 evalExpression line (Expression "=" rest) mapping = evalExpression line rest mapping ++ [Equal line]
 evalExpression line (Expression "<>" rest) mapping = evalExpression line rest mapping ++ [NotEqual line]
 evalExpression line (Expression ">" rest) mapping = evalExpression line rest mapping ++ [Greater line]
 evalExpression line (Expression "<" rest) mapping = evalExpression line rest mapping ++ [Less line]
 evalExpression line (Expression "<=" rest) mapping = evalExpression line rest mapping ++ [LEqual line]
 evalExpression line (Expression ">=" rest) mapping = evalExpression line rest mapping ++ [GEqual line]
+evalExpression line (Function "int" rest) mapping = evalExpression line rest mapping ++ [CastInt line]
+evalExpression line (Function "log" rest) mapping = evalExpression line rest mapping ++ [Log line]
+evalExpression line (Function "rnd" rest) mapping = evalExpression line rest mapping ++ [Rand line]
 evalExpression line e@(ExpressionList xs) mapping = evalExpressionList line e mapping
 evalExpression line s@(Statement _ _) mapping = evalStatement line s mapping
 evalExpression line (Constant i) mapping = generatePush line i
@@ -465,6 +482,7 @@ evalLetStatement line (ExpressionList ((Variable s):xs)) mapping =
     generatePush line s ++ evalExpressionList line (ExpressionList xs) mapping ++ [Store line]
 
 -- evalStatement deals with things like if, for, goto, etc.
+evalStatement line None mapping = []
 evalStatement line (Statement "end" _) mapping = [End line]
 evalStatement line (Statement "if" e) mapping = evalStatement line e mapping
 evalStatement line (Statement "then" e) mapping = evalIfThenStatement line e mapping
@@ -473,6 +491,7 @@ evalStatement line (Statement "print" e) mapping = evalExpression line e mapping
 evalStatement line (Statement "print!" e) mapping = evalExpression line e mapping ++ [PrintBang line]
 evalStatement line (Statement "let" e) mapping = evalLetStatement line e mapping
 evalStatement line (Statement "for" (ExpressionList ((Variable v):es))) mapping = generatePush line v ++ evalExpressionList line (ExpressionList es) mapping
+evalStatement line (Statement "tab" e) mapping = evalExpression line e mapping ++ [Spaces line]
 evalStatement line (Statement "to" (ExpressionList ((Variable (String' v)):e:es))) mapping =
     evalExpression line e mapping ++ [Store line] ++ [Push line (VString (v ++ "maxrange"))] ++ evalExpressionList line (ExpressionList es) mapping ++ [Store line] ++
     [Push line (VIntegral $ line + 1)] ++ [PushCallstack line]
@@ -496,6 +515,7 @@ evalStatement line e@(ExpressionList _) mapping = evalExpressionList line e mapp
 evalStatement line e@(Expression _ _) mapping = evalExpression line e mapping
 
 --evalStatement :: Basic -> [(Int, Int)] -> [Bytecode]
+evalStatementList _ None mapping = []
 evalStatementList _ (StatementList []) mapping = []
 evalStatementList line (StatementList (s:ss)) mapping = evalStatement line s mapping ++ 
                                                         evalStatementList line (StatementList ss) mapping
