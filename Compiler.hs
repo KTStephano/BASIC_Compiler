@@ -450,6 +450,14 @@ evalStatement line (Statement "input" e) mapping = evalExpression line e mapping
 evalStatement line (Statement "print" e) mapping = evalExpression line e mapping ++ [Print line]
 evalStatement line (Statement "print!" e) mapping = evalExpression line e mapping ++ [PrintBang line]
 evalStatement line (Statement "let" e) mapping = evalLetStatement line e mapping
+evalStatement line (Statement "goto" (Integer' i)) mapping = 
+    generatePush line (Integer' $ renumberLine i mapping) ++ [Goto line]
+evalStatement line (Statement "gosub" (Integer' i)) mapping = 
+    let renumbered = renumberLine i mapping 
+        nextLine = line + 1 in
+        generatePush line (Integer' renumbered) ++ generatePush line (Integer' nextLine) ++
+        [PushCallstack line] ++ [Goto line]
+evalStatement line (Statement "return" _) mapping = [PopCallstack line] ++ [Goto line]
 evalStatement line e@(ExpressionList _) mapping = evalExpressionList line e mapping
 evalStatement line e@(Expression _ _) mapping = evalExpression line e mapping
 
