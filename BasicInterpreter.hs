@@ -256,9 +256,10 @@ vm program env ((GEqual l):rest) frame outFrame = do
 vm program env ((LEqual l):rest) frame outFrame = do
     let (frame', val) = logical (<=) frame
     vm program env rest (push frame' val) outFrame
+    
 vm program env ((PushCallstack l):rest) frame outFrame = do
     let (frame', val) = unary frame
-    vm program env rest frame' (push frame val)
+    vm program env rest frame' (push outFrame val)
 vm program env ((PopCallstack l):rest) frame outFrame = do
     let (frame', val) = unary' outFrame
     vm program env rest (push frame val) frame' --(push frame val) frame'
