@@ -58,6 +58,13 @@ subCheck2 = "(define subtestt '((100 print \"hi\")" ++
                             "(800 print \"Whats up\")" ++
                             "(900 return)))"
 
+forCheck = "(define fortest '((100 for i = 1 to 10)" ++
+                             "(150 for j = 1 to 10)" ++
+                             "(200 print i)" ++
+                             "(250 next j)" ++
+                             "(300 next i)" ++
+                             "(400 end)))"
+
 
 quadratic1 = "(define quadratic1 '(" ++
     "(100 input \"What is the value of A\" a )" ++
@@ -250,11 +257,11 @@ vm program env ((LEqual l):rest) frame outFrame = do
     let (frame', val) = logical (<=) frame
     vm program env rest (push frame' val) outFrame
 vm program env ((PushCallstack l):rest) frame outFrame = do
-    let (frame', val) = test frame
+    let (frame', val) = unary frame
     vm program env rest frame' (push frame val)
 vm program env ((PopCallstack l):rest) frame outFrame = do
     let (frame', val) = unary' outFrame
-    vm program env rest (push frame val) (Frame [])
+    vm program env rest (push frame val) frame' --(push frame val) frame'
 vm program env ((IfThen l):rest) frame outFrame = do
     let (frame',res) = getStatement frame
     vm program env (res ++ rest) frame' outFrame
@@ -270,7 +277,7 @@ vm program env ((Print l):rest) frame outFrame= do
     vm program env rest (Frame []) outFrame
 
 
-test frame = let (frame', x) = unary frame in (frame', x)
+--test frame = let (frame', x) = unary frame in (frame', x)
 
 newProgram [] _ _ = []
 newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l True) else newProgram xs l b
