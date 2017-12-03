@@ -502,7 +502,7 @@ evalStatement line (Statement "next" (Variable var@(String' v))) mapping =
         Push line (VString (v ++ "jmp")), PopCallstack line, Store line, -- Stores the jump location in variable (v ++ jmp)
         Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the next iteration to see it again)
         Push line (VString (v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps to it
-        ]] ++ [IfThen line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
+        ]] ++ [IfThen line] ++ generatePush line var ++ [PopCallstack line] ++ [Store line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
 evalStatement line (Statement "goto" (Integer' i)) mapping = 
     generatePush line (Integer' $ renumberLine i mapping) ++ [Goto line]
 evalStatement line (Statement "gosub" (Integer' i)) mapping = 
