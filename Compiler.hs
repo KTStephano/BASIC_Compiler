@@ -315,11 +315,11 @@ let' = do
 
 print' :: ParseTree Basic
 print' = (do
-    (Symbol p) <- string' "print"
+    (Symbol p) <- (string' "print" `mplus` string' "print!")
     es <- expressionList
     return $ Statement p es) `mplus`
     (do
-        (Symbol p) <- string' "print"
+        (Symbol p) <- (string' "print" `mplus` string' "print!")
         t <- tab
         (ExpressionList es) <- expressionList
         return $ Statement p $ ExpressionList ([t] ++ es))
