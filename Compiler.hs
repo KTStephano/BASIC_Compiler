@@ -230,8 +230,8 @@ instance Show Basic where
     show (Line l b) = show l ++ ": " ++ show b
     show (Variable b) = "Var " ++ show b
     show (Function s b) = "Function " ++ s ++ " -> " ++ show b
-    show (Statement s b) = "{Statement " ++ show s ++ " -> " ++ show b ++ "}"
-    show (Expression s b) = "{Expression " ++ show s ++ " -> " ++ show b ++ "}"
+    show (Statement s b) = "{Statement " ++ s ++ " -> " ++ show b ++ "}"
+    show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
     show (ExpressionList xs) = show xs
     show (Constant c) = "Const " ++ show c
     show None = "None"
@@ -251,9 +251,9 @@ symb' cs = do {i <- item'; if cs == i then return i else mzero}
 
 -- Functions for converting a Sexpr (parse tree) into Basic
 iD = do
-    (Symbol s) <- item'
-    if (s !! 0) == '"' then mzero
-    else return $ Variable $ String' s
+    (Symbol (s:ss)) <- item'
+    if s == '"' then mzero
+    else return $ Variable $ String' [s]
 
 basicString =
     do
@@ -272,12 +272,27 @@ statements =
         return $ StatementList [s])
 
 statement :: ParseTree Basic
-statement = end `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` print' `mplus` return' `mplus` setVar
+statement = end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` print' `mplus` return' `mplus` setVar
 
 end :: ParseTree Basic
 end = do
     (Symbol e) <- string' "end"
     return $ Statement e None
+
+for :: ParseTree Basic
+for = do
+    (Symbol f) <- string' "for"
+    i <- iD
+    string' "="
+    ts@(Statement t (ExpressionList es)) <- to
+    return $ Statement f $ ExpressionList [i, (Statement t $ ExpressionList ([i] ++ es))]
+
+to :: ParseTree Basic
+to = do
+    e <- expression
+    (Symbol t) <- string' "to"
+    e' <- expression
+    return $ Statement t $ ExpressionList [e, e']
 
 goto :: ParseTree Basic
 goto = do
@@ -312,6 +327,12 @@ let' = do
     string' "="
     e <- expression
     return $ Statement l $ ExpressionList [v, e]
+
+next :: ParseTree Basic
+next = do
+    (Symbol n) <- string' "next"
+    i <- iD
+    return $ Statement n i
 
 print' :: ParseTree Basic
 print' = (do
@@ -450,6 +471,18 @@ evalStatement line (Statement "input" e) mapping = evalExpression line e mapping
 evalStatement line (Statement "print" e) mapping = evalExpression line e mapping ++ [Print line]
 evalStatement line (Statement "print!" e) mapping = evalExpression line e mapping ++ [PrintBang line]
 evalStatement line (Statement "let" e) mapping = evalLetStatement line e mapping
+evalStatement line (Statement "for" (ExpressionList ((Variable v):es))) mapping = generatePush line v ++ evalExpressionList line (ExpressionList es) mapping
+evalStatement line (Statement "to" (ExpressionList ((Variable (String' v)):e:es))) mapping =
+    evalExpression line e mapping ++ [Store line] ++ [Push line (VString (v ++ "maxrange"))] ++ evalExpressionList line (ExpressionList es) mapping ++ [Store line] ++
+    [Push line (VIntegral $ line + 1)] ++ [PushCallstack line]
+evalStatement line (Statement "next" (Variable var@(String' v))) mapping =
+    generatePush line var ++ generatePush line var ++ [Load line] ++ [Push line (VIntegral 1)] ++ [Add line] ++ [Store line] ++ -- This increments the variable
+    generatePush line var ++ [Load line] ++ [Push line (VString (v ++ "maxrange"))] ++ [Load line] ++ [LEqual line] ++ -- This performs the comparison to see if the loop is done
+    [Push line $ VStatement $ [ -- Creating code which can jump to the top of the loop if necessary
+        Push line (VString (v ++ "jmp")), PopCallstack line, Store line, -- Stores the jump location in variable (v ++ jmp)
+        Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the next iteration to see it again)
+        Push line (VString (v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps to it
+        ]] ++ [IfThen line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
 evalStatement line (Statement "goto" (Integer' i)) mapping = 
     generatePush line (Integer' $ renumberLine i mapping) ++ [Goto line]
 evalStatement line (Statement "gosub" (Integer' i)) mapping = 
