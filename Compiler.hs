@@ -90,7 +90,7 @@ instance Show Value where
     show (VString s) = s
     show (VBool b) = show b
     show Null = "Null"
-    show (VSymbol vr vl) = vr ++ "," ++ show vl
+    show (VSymbol vr vl) = show vl
     show (VStatement s) = show s
 
 {-
