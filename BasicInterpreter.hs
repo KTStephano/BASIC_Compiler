@@ -50,12 +50,13 @@ subCheck = "(define subtest '((100 print \"hi\")" ++
 
 subCheck2 = "(define subtestt '((100 print \"hi\")" ++
                             "(200 print 27)" ++
-                            "(300 gosub 600)" ++
-                            "(400 print 111)" ++
-                            "(500 end)" ++
-                            "(600 print 3.14)" ++
-                            "(700 print \"Whats up\")" ++
-                            "(700 return)))"
+                            "(300 gosub 700)" ++
+                            "(400 gosub 700)" ++
+                            "(500 print 111)" ++
+                            "(600 end)" ++
+                            "(700 print 3.14)" ++
+                            "(800 print \"Whats up\")" ++
+                            "(900 return)))"
 
 
 quadratic1 = "(define quadratic1 '(" ++
@@ -91,7 +92,10 @@ quadratic2 = "(define quadratic2 '(" ++
   "(220 for i = 1 to 10 )" ++
   "(230 let s = ((s + (d / s)) / 2.0) )" ++
   "(240 next i )" ++
-  "(250 return )))" 
+  "(250 return )))"
+
+
+guess = "(define guess '( (100 print tab(33) \"GUESS\" ) (110 print tab(15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (120 print ) (130 print \"THIS IS A NUMBER GUESSING GAME. I'LL THINK\" ) (140 print \"OF A NUMBER BETWEEN 1 AND ANY LIMIT YOU WANT.\" ) (150 print \"THEN YOU HAVE TO GUESS WHAT IT IS.\" ) (160 print ) (170 input \"WHAT LIMIT DO YOU WANT\" l ) (180 print ) (190 let l1 = int (((log (l) / log (2)) + 1)) ) (200 print \"I'M THINKING OF A NUMBER BETWEEN 1 AND \" l ) (210 let g = 1 ) (220 let m = int (((l * rnd (1)) + 1)) ) (230 print ) (240 input \"WHAT IS YOUR GUESS\" n ) (250 print ) (260 if (n > 0) then 290 ) (270 print \"ILLEGAL VALUE.\" ) (280 goto 230 ) (290 if (n <= l) then 320 ) (300 print \"ILLEGAL VALUE.\" ) (310 goto 230 ) (320 if (n = m) then 390 ) (330 let g = (g + 1) ) (340 if (n > m) then 370 ) (350 print \"TOO LOW. TRY A BIGGER ANSWER.\" ) (360 goto 230 ) (370 print \"TOO HIGH. TRY A SMALLER ANSWER.\" ) (380 goto 230 ) (390 print \"THAT'S IT! YOU GOT IT IN \" g \" TRIES.\" ) (400 if (g < l1) then 440 ) (410 if (g = l1) then 450 ) (420 print \"YOU SHOULD HAVE BEEN ABLE TO GET IT IN ONLY \" l1 \" TRIES.\" ) (430 end ) (440 print! \"VERY \" ) (450 print \"GOOD.\" ) (460 end )))"
 
 newtype Environment = Environment {getEnv :: [(String, Value)]} deriving (Show, Eq)
 
