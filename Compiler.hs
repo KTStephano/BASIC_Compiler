@@ -209,7 +209,7 @@ p str = let result = parse s str
 
 -- Parses the string and returns it in a form that is compiler-friendly
 analyze :: [Char] -> Sexpr
-analyze str = let result = p (map toLower str)
+analyze str = let result = p str
               in case result of 
                 (Symbol s) -> Symbol s -- Parser returned an error
                 s -> car $ cdr $ cdr s
