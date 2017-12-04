@@ -146,7 +146,7 @@ number = (do
 
 misc = do
     r <- item--token item
-    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!', ':', '.', '\'', ',']
+    let miscVals = ['<', '>', '^', '+', '-', '*', '/', '=', '!', ':', '.', '\'', ',', '$']
     if (r `elem` miscVals) then return r else mzero
 
 first = misc +++ lower
@@ -209,7 +209,7 @@ p str = let result = parse s str
 
 -- Parses the string and returns it in a form that is compiler-friendly
 analyze :: [Char] -> Sexpr
-analyze str = let result = p str
+analyze str = let result = p (map toLower str)
               in case result of 
                 (Symbol s) -> Symbol s -- Parser returned an error
                 s -> car $ cdr $ cdr s
@@ -225,7 +225,8 @@ printBytecode (x:xs) = do
 data Basic = String' String | Integer' Int | Floating' Double | StatementList [Basic] |
              Line Int Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
              Constant Basic | Statement {getName :: String, body :: Basic} | 
-             Expression String Basic | ExpressionList [Basic] | None deriving (Eq)
+             Expression String Basic | ExpressionList [Basic] | 
+             Array' String Int Basic | None deriving (Eq)
 
 instance Show Basic where
     show (String' s) = s
@@ -235,6 +236,7 @@ instance Show Basic where
     show (Line l b) = show l ++ ": " ++ show b
     show (Variable b) = "Var " ++ show b
     show (Function s b) = "Function " ++ s ++ " -> " ++ show b
+    show (Array' n i b) = "Array -> " ++ n ++ " " ++ show i ++ " " ++ show b
     show (Statement s b) = "{Statement " ++ s ++ " -> " ++ show b ++ "}"
     show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
     show (ExpressionList xs) = show xs
@@ -277,7 +279,13 @@ statements =
         return $ StatementList [s])
 
 statement :: ParseTree Basic
-statement = end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` print' `mplus` return' `mplus` setVar
+statement = dim `mplus` end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` print' `mplus` return' `mplus` setVar
+
+dim :: ParseTree Basic
+dim = do
+    (Symbol d) <- string' "dim"
+    a <- array'
+    return $ Statement d a
 
 end :: ParseTree Basic
 end = do
@@ -372,10 +380,18 @@ setVar = do
     e <- expression
     return $ Statement "let" $ ExpressionList [v, e]
 
-optimization = StateT $ \s -> if s == Nil then Nothing else
+nestedExpression = StateT $ \s -> if s == Nil then Nothing else
     case s of
         (Cons c@(Cons s s') s'') ->
             case (runStateT expression c) of
+                Nothing -> Nothing
+                Just (res, _) -> Just (res, s'')
+        _ -> Nothing
+
+nestedExpressionList = StateT $ \s -> if s == Nil then Nothing else
+    case s of
+        (Cons c@(Cons s s') s'') ->
+            case (runStateT expressionList c) of
                 Nothing -> Nothing
                 Just (res, _) -> Just (res, s'')
         _ -> Nothing
@@ -402,15 +418,21 @@ addExp =
             return $ Expression op $ ExpressionList [m, a]
             else mzero) `mplus` value
 
-value = optimization `mplus` function `mplus` variable `mplus` constant
+value = nestedExpression `mplus` function `mplus` variable `mplus` constant
 
-variable = iD
+variable = array' `mplus` iD
+
+array' :: ParseTree Basic
+array' = do
+    (Variable (String' s)) <- iD
+    e@(ExpressionList es) <- nestedExpressionList
+    return $ Array' s (length es) e
 
 function = 
     do 
         (Symbol i) <- item'
         if (i `elem` ["int", "rnd", "log", "abs", "sqrt"]) then do
-            e <- optimization
+            e <- nestedExpression
             return $ Function i e
             else mzero
 
