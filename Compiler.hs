@@ -323,7 +323,7 @@ if' = do
 then' :: ParseTree Basic
 then' = do
     (Symbol t) <- string' "then"
-    e <- (nesting statement `mplus` statement)
+    e <- (nesting statement `mplus` statement `mplus` expression)
     return $ Statement t e
 
 input :: ParseTree Basic
