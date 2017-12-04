@@ -205,23 +205,26 @@ mult (VFloating i) (VFloating j) = VFloating $ i * j
 input frame env = let (frame', (VSymbol var _)) = pop frame
                       (frame'', (VString str)) = pop frame'
                   in do
-                        putStrLn (str ++ "?")
+                        putStrLn ((filter (\p -> '"' /= p) str) ++ "?")
                         s <- getLine
                         let env' = updateEnv env var (VString s)
                         return (frame'', env')
-
 
 --print' (Frame []) = "\n"
 print' :: Frame -> IO()
 print' (Frame []) = putStrLn ""
 print' (Frame (x:xs)) = do
-    putStr (show x)
+    case x of
+        (VString s) -> putStr (filter (\p -> '"' /= p) s)
+        _ -> putStr (show x)
     print' (Frame xs)
 
 printBang :: Frame -> IO()
 printBang (Frame []) = putStr ""
 printBang (Frame (x:xs)) = do
-    putStr (show x)
+    case x of
+        (VString s) -> putStr (filter (\p -> '"' /= p) s)
+        _ -> putStr (show x)
     printBang (Frame xs)
 
 --nextline is neecd for go sub
