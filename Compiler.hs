@@ -260,6 +260,7 @@ symb' cs = do {i <- item'; if cs == i then return i else mzero}
 iD = do
     (Symbol (s:ss)) <- item'
     if s == '"' then mzero
+    else if isLetter s == False then mzero
     else return $ Variable $ String' (s:ss)
 
 basicString =
