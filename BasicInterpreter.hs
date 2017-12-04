@@ -292,10 +292,7 @@ vm program env ((Rand l):rest) frame outFrame = do
   let (frame',val) = unary frame
       myRand  = getRand val
       q = fix myRand
-      test = (VIntegral 5)
-  print "This is the number"
-  print q
-  vm program env rest (push frame' test) outFrame
+  vm program env rest (push frame' q) outFrame
 --vm program env ((Pow l):rest) frame outFrame = do
 --  let (frame', val) = arithmetic (^) frame
 --  vm program env rest (push frame' val) outFrame
@@ -334,8 +331,7 @@ getLog (VIntegral val) = VFloating (log $ fromIntegral val)
 getLog (VFloating val) = VFloating (log val)
 
 getRand (VIntegral val) = do
-  g <- newStdGen
-  let (x,y) = randomR(1,val) g
+  x  <- randomRIO(0,1)
   return x
 
 newProgram [] _ _ = []
@@ -348,4 +344,4 @@ getStatement frame = let (frame',((VBool x),(VStatement ys))) = binary frame in
                 else (frame', [])
 
 
-fix x = VIntegral $ unsafePerformIO x
+fix x = VFloating $ unsafePerformIO x
