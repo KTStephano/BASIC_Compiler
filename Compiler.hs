@@ -323,7 +323,7 @@ if' = do
 then' :: ParseTree Basic
 then' = do
     (Symbol t) <- string' "then"
-    e <- expression
+    e <- (nesting statement `mplus` statement)
     return $ Statement t e
 
 input :: ParseTree Basic
@@ -380,18 +380,11 @@ setVar = do
     e <- expression
     return $ Statement "let" $ ExpressionList [v, e]
 
-nestedExpression = StateT $ \s -> if s == Nil then Nothing else
+nesting :: ParseTree Basic -> ParseTree Basic
+nesting function = StateT $ \s -> if s == Nil then Nothing else
     case s of
         (Cons c@(Cons s s') s'') ->
-            case (runStateT expression c) of
-                Nothing -> Nothing
-                Just (res, _) -> Just (res, s'')
-        _ -> Nothing
-
-nestedExpressionList = StateT $ \s -> if s == Nil then Nothing else
-    case s of
-        (Cons c@(Cons s s') s'') ->
-            case (runStateT expressionList c) of
+            case (runStateT function c) of
                 Nothing -> Nothing
                 Just (res, _) -> Just (res, s'')
         _ -> Nothing
@@ -418,21 +411,21 @@ addExp =
             return $ Expression op $ ExpressionList [m, a]
             else mzero) `mplus` value
 
-value = nestedExpression `mplus` function `mplus` variable `mplus` constant
+value = (nesting expression) `mplus` function `mplus` variable `mplus` constant
 
 variable = array' `mplus` iD
 
 array' :: ParseTree Basic
 array' = do
     (Variable (String' s)) <- iD
-    e@(ExpressionList es) <- nestedExpressionList
+    e@(ExpressionList es) <- nesting expressionList
     return $ Array' s (length es) e
 
 function = 
     do 
         (Symbol i) <- item'
         if (i `elem` ["int", "rnd", "log", "abs", "sqrt"]) then do
-            e <- nestedExpression
+            e <- nesting expression
             return $ Function i e
             else mzero
 
