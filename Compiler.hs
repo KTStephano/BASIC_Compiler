@@ -84,7 +84,37 @@ data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {li
                 NotEqual {line :: Int} | Greater {line :: Int} | GEqual {line :: Int} | Less {line :: Int} | 
                 LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} | NextLine {line :: Int} | 
                 PushCallstack {line :: Int} | PopCallstack {line :: Int} | Spaces {line :: Int} | CastInt {line :: Int} |
-                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} deriving (Show, Eq)
+                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} deriving (Eq)
+
+instance Show Bytecode where
+    show (End l) = "end"
+    show (Push l a) = "push " ++ show a
+    show (Print l) = "print"
+    show (PrintBang l) = "printbang"
+    show (Add l) = "add"
+    show (Mult l) = "mult"
+    show (Sub l) = "sub"
+    show (Div l) = "div"
+    show (Pow l) = "pow"
+    show (Load l) = "load"
+    show (Store l) = "store"
+    show (Input l) = "input"
+    show (Equal l) = "equal"
+    show (NotEqual l) = "notequal"
+    show (Greater l) = "greater"
+    show (GEqual l) = "gequal"
+    show (Less l) = "less"
+    show (LEqual l) = "lequal"
+    show (IfThen l) = "ifthen"
+    show (Goto l) = "goto"
+    show (NextLine l) = "nextline"
+    show (PushCallstack l) = "pushcallstack"
+    show (PopCallstack l) = "popcallstack"
+    show (Spaces l) = "spaces"
+    show (CastInt l) = "castint"
+    show (Rand l) = "rand"
+    show (Log l) = "log"
+    show (Abs l) = "abs"
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | Null | VPair (Value, Value) deriving (Eq)
