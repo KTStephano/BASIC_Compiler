@@ -1,7 +1,7 @@
 module Compiler
 (Sexpr(Symbol, Number, Floating, Nil, Cons), 
  Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, Null), 
- Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow), 
+ Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow, And, Or), 
  analyze, car, cdr, compile, printBytecode, line) where
 
 import Parselib
@@ -84,7 +84,7 @@ data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {li
                 NotEqual {line :: Int} | Greater {line :: Int} | GEqual {line :: Int} | Less {line :: Int} | 
                 LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} | NextLine {line :: Int} | 
                 PushCallstack {line :: Int} | PopCallstack {line :: Int} | Spaces {line :: Int} | CastInt {line :: Int} |
-                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} deriving (Eq)
+                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} | And {line :: Int} | Or {line :: Int} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -115,6 +115,8 @@ instance Show Bytecode where
     show (Rand l) = "rand"
     show (Log l) = "log"
     show (Abs l) = "abs"
+    show (And l) = "and"
+    show (Or l) = "or"
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | Null | VPair (Value, Value) deriving (Eq)
@@ -421,7 +423,15 @@ nesting function = StateT $ \s -> if s == Nil then Nothing else
         _ -> Nothing
 
 expression :: ParseTree Basic
-expression = addExp `mplus` value
+expression = 
+    (do
+        a <- addExp
+        (Symbol s) <- item'
+        if (s `elem` ["and", "or"]) then do
+            e <- expression
+            return $ Expression s $ ExpressionList [a, e]
+        else mzero) `mplus`
+    addExp `mplus` value
 
 expressionList :: ParseTree Basic
 expressionList =
@@ -513,6 +523,8 @@ evalExpression line (Expression ">" rest) mapping = evalExpression line rest map
 evalExpression line (Expression "<" rest) mapping = evalExpression line rest mapping ++ [Less line]
 evalExpression line (Expression "<=" rest) mapping = evalExpression line rest mapping ++ [LEqual line]
 evalExpression line (Expression ">=" rest) mapping = evalExpression line rest mapping ++ [GEqual line]
+evalExpression line (Expression "and" rest) mapping = evalExpression line rest mapping ++ [And line]
+evalExpression line (Expression "or" rest) mapping = evalExpression line rest mapping ++ [Or line]
 evalExpression line (Function "int" rest) mapping = evalExpression line rest mapping ++ [CastInt line]
 evalExpression line (Function "log" rest) mapping = evalExpression line rest mapping ++ [Log line]
 evalExpression line (Function "rnd" rest) mapping = evalExpression line rest mapping ++ [Rand line]
