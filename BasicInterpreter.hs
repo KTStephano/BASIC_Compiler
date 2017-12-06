@@ -73,6 +73,9 @@ mathCheck = "(define mathtest '((100 print \"math test\")" ++
                                "(400 let a2 = -1)" ++
                                "(500 print abs (a3))))"
 
+powerCheck = "(defime powertest '((100 let x  = (10 ^ 0.5))" ++
+                                 "(200 print x)))"
+
 
 
 quadratic1 = "(define quadratic1 '(" ++
@@ -264,7 +267,6 @@ vm program env ((NotEqual l):rest) frame outFrame = do
     vm program env rest (push frame' val) outFrame
 vm program env ((Greater l):rest) frame outFrame= do
     let (frame', val) = logical (>) frame
-    --print (frame', val)
     vm program env rest (push frame' val) outFrame
 vm program env ((Less l):rest) frame outFrame = do
     let (frame', val) = logical (<) frame
@@ -284,7 +286,7 @@ vm program env ((CastInt l):rest) frame outFrame = do
       myInt = getFloor val 
   vm program env rest (push frame' myInt) outFrame
 vm program env ((Abs l):rest) frame outFrame = do
-  let (frame',val) = unary frame  
+  let (frame',val) = unary frame
       myabs = getAbs val      
   vm program env rest (push frame' myabs) outFrame
 vm program env ((Log l):rest) frame outFrame = do
@@ -296,15 +298,15 @@ vm program env ((Rand l):rest) frame outFrame = do
       myRand  = getRand val
       q = fix myRand
   vm program env rest (push frame' q) outFrame
---vm program env ((Pow l):rest) frame outFrame = do
---  let (frame', val) = arithmetic (^) frame
---  vm program env rest (push frame' val) outFrame
+vm program env ((Pow l):rest) frame outFrame = do
+  let (frame', val) = getPower frame
+  vm program env rest (push frame' val) outFrame
 vm program env ((PushCallstack l):rest) frame outFrame = do
     let (frame', val) = unary frame
     vm program env rest frame' (push outFrame val)
 vm program env ((PopCallstack l):rest) frame outFrame = do
     let (frame', val) = unary' outFrame
-    vm program env rest (push frame val) frame' --(push frame val) frame'
+    vm program env rest (push frame val) frame'
 vm program env ((IfThen l):rest) frame outFrame = do
     let (frame',res) = getStatement frame
     vm program env (res ++ rest) frame' outFrame
@@ -332,6 +334,14 @@ getSpaces (VIntegral val) = VString (replicate val ' ')
 getLog (VString val) = VFloating (log (read val :: Double))
 getLog (VIntegral val) = VFloating (log $ fromIntegral val)
 getLog (VFloating val) = VFloating (log val)
+
+getPower frame = let (frame',(x,y)) = binary frame
+                        in case (x,y) of
+                             (VIntegral i, VIntegral ii) -> (frame', VIntegral $ i ^ ii)
+                             (VFloating i, VIntegral ii) -> (frame', VFloating $ i ** (fromIntegral ii))
+                             (VIntegral i, VFloating ii) -> (frame', VFloating $ (fromIntegral i) ** ii)
+                             (VFloating i, VFloating ii) -> (frame', VFloating $ i ** ii)
+
 
 getRand (VIntegral val) = do
   x  <- randomRIO(0,1)
