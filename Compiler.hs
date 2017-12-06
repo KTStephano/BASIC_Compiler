@@ -1,6 +1,6 @@
 module Compiler
 (Sexpr(Symbol, Number, Floating, Nil, Cons), 
- Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, Null), 
+ Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, VIntegerList, VPair, Null), 
  Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow, And, Or, ALoad, ALoad2D, AStore, NewArray, NewArray2D, OnGoto, OnGosub), 
  analyze, car, cdr, compile, printBytecode, line) where
 
