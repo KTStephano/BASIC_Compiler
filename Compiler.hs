@@ -529,6 +529,21 @@ printBasic ((Line l x):xs) = do
     putStrLn (show x)
     printBasic xs
 
+translateSexpr' :: Sexpr -> Maybe [Basic]
+translateSexpr' Nil = Just []
+translateSexpr' (Cons (Number i) s) = let result = runStateT statements s
+                                     in case result of
+                                        (Just (r@(StatementList ss), _)) -> Just [Line i r]
+                                        Nothing -> Just [None]
+translateSexpr' (Cons s s') = let left = translateSexpr' s 
+                                  right = translateSexpr' s'
+                              in
+                                  case (left, right) of
+                                    (_, Nothing) -> Just [None]
+                                    (Nothing, _) -> Just [None]
+                                    (Just xs, Just ys) -> Just (xs ++ ys)
+
+{-
 translateSexpr :: Sexpr -> [Basic]
 translateSexpr Nil = []
 translateSexpr (Cons (Number i) s) = let result = runStateT statements s
@@ -536,6 +551,13 @@ translateSexpr (Cons (Number i) s) = let result = runStateT statements s
                                         (Just (r@(StatementList ss), _)) -> [Line i r]
                                         Nothing -> []
 translateSexpr (Cons s s') = translateSexpr s ++ translateSexpr s'
+-}
+
+translateSexpr :: Sexpr -> [Basic]
+translateSexpr s = let result = translateSexpr' s in
+    case result of
+        Nothing -> []
+        Just (xs) -> xs
 
 renumber :: [Basic] -> Int -> Int -> [(Int, Int)] -> ([Basic], [(Int, Int)])
 renumber [] _ _ mapping = ([], mapping)
