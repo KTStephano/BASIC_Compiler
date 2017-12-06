@@ -1,7 +1,7 @@
 module Compiler
 (Sexpr(Symbol, Number, Floating, Nil, Cons), 
  Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, Null), 
- Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow, And, Or), 
+ Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow, And, Or, ALoad, ALoad2D, AStore, NewArray, NewArray2D, OnGoto, OnGosub), 
  analyze, car, cdr, compile, printBytecode, line) where
 
 import Parselib
@@ -84,7 +84,9 @@ data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {li
                 NotEqual {line :: Int} | Greater {line :: Int} | GEqual {line :: Int} | Less {line :: Int} | 
                 LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} | NextLine {line :: Int} | 
                 PushCallstack {line :: Int} | PopCallstack {line :: Int} | Spaces {line :: Int} | CastInt {line :: Int} |
-                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} | And {line :: Int} | Or {line :: Int} deriving (Eq)
+                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} | And {line :: Int} | Or {line :: Int} |
+                ALoad {line :: Int} | ALoad2D {line :: Int} | NewArray {line :: Int} | NewArray2D {line :: Int} |
+                AStore {line :: Int} | OnGoto {line :: Int} | OnGosub {line :: Int} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -117,9 +119,16 @@ instance Show Bytecode where
     show (Abs l) = "abs"
     show (And l) = "and"
     show (Or l) = "or"
+    show (ALoad l) = "aload"
+    show (ALoad2D l) = "aload2d"
+    show (NewArray l) = "newarray"
+    show (NewArray2D l) = "newarray2d"
+    show (AStore l) = "astore"
+    show (OnGoto l) = "ongoto"
+    show (OnGosub l) = "ongosub"
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
-             VBool Bool | VStatement [Bytecode] | Null | VPair (Value, Value) deriving (Eq)
+             VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
@@ -129,6 +138,7 @@ instance Show Value where
     show Null = "Null"
     show (VSymbol vr vl) = show vl
     show (VStatement s) = show s
+    show (VIntegerList is) = show is
 
 {-
 
@@ -258,7 +268,7 @@ data Basic = String' String | Integer' Int | Floating' Double | StatementList [B
              Line Int Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
              Constant Basic | Statement {getName :: String, body :: Basic} | 
              Expression String Basic | ExpressionList [Basic] | 
-             Array' String Int Basic | None deriving (Eq)
+             Array' String Int Basic | IntegerList [Basic] | None deriving (Eq)
 
 instance Show Basic where
     show (String' s) = s
@@ -273,6 +283,7 @@ instance Show Basic where
     show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
     show (ExpressionList xs) = show xs
     show (Constant c) = "Const " ++ show c
+    show (IntegerList is) = "{IntegerList -> " ++ show is ++ "}"
     show None = "None"
 
 type ParseTree a = StateT Sexpr Maybe a
@@ -300,6 +311,21 @@ basicString =
         (Symbol s@('"':xs)) <- item'
         return $ Constant $ String' s
 
+integer' :: ParseTree Basic
+integer' = do
+    (Number i) <- item'
+    return $ Constant $ Integer' i
+
+integerList :: ParseTree Basic
+integerList =
+    (do
+        i <- integer'
+        (IntegerList is) <- integerList
+        return $ IntegerList $ [i] ++ is) `mplus`
+    (do
+        i <- integer'
+        return $ IntegerList [i])
+
 statements :: ParseTree Basic
 statements =
     (do
@@ -312,7 +338,7 @@ statements =
         return $ StatementList [s])
 
 statement :: ParseTree Basic
-statement = dim `mplus` end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` print' `mplus` return' `mplus` setVar
+statement = dim `mplus` end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` on' `mplus` print' `mplus` return' `mplus` setVar
 
 dim :: ParseTree Basic
 dim = do
@@ -379,6 +405,17 @@ next = do
     (Symbol n) <- string' "next"
     i <- iD
     return $ Statement n i
+
+on' :: ParseTree Basic
+on' =
+    do
+        (Symbol o) <- string' "on"
+        e <- expression
+        (Symbol g) <- item'
+        if (g `elem` ["goto", "gosub"]) then do
+            is <- integerList
+            return $ Statement o $ ExpressionList [e, is, Statement g None]
+        else mzero
 
 print' :: ParseTree Basic
 print' = 
@@ -498,10 +535,19 @@ renumber basic@((Line l b):ls) line newline mapping = if l /= line then renumber
 
 -- Begin the actual compiler
 
-generatePush line (Integer' i) = [Push line (VIntegral i)]
-generatePush line (Floating' f) = [Push line (VFloating f)]
-generatePush line (String' s) = [Push line (VString s)]
-generatePush line (Variable (String' v)) = [Push line (VString v), Load line]
+generatePush line (Constant c) mapping = generatePush line c mapping
+generatePush line (Integer' i) mapping = [Push line (VIntegral i)]
+generatePush line (Floating' f) mapping = [Push line (VFloating f)]
+generatePush line (String' s) mapping = [Push line (VString s)]
+generatePush line (Variable (String' v)) mapping = [Push line (VString v), Load line]
+generatePush line a@(Array' _ i _) mapping =
+    if (i == 1) then generateSimpleArrayPush line a mapping ++ [ALoad line]
+    else generateSimpleArrayPush line a mapping ++ [ALoad2D line]
+
+-- Will push the array name and indices, but will not append a load/store operation after
+generateSimpleArrayPush line (Array' s i b) mapping =
+    if (i == 1) then [Push line (VString s)] ++ evalExpression line b mapping
+    else [Push line (VString s)] ++ evalExpression line b mapping
 
 renumberLine :: Int -> [(Int, Int)] -> Int
 renumberLine line ((orig, new):ls) = if line == orig then new else renumberLine line ls
@@ -530,11 +576,12 @@ evalExpression line (Function "log" rest) mapping = evalExpression line rest map
 evalExpression line (Function "rnd" rest) mapping = evalExpression line rest mapping ++ [Rand line]
 evalExpression line (Function "abs" rest) mapping = evalExpression line rest mapping ++ [Abs line]
 evalExpression line (Function "sqrt" rest) mapping = 
-    evalExpression line rest mapping ++ generatePush line (Floating' 0.5) ++ [Pow line]
+    evalExpression line rest mapping ++ generatePush line (Floating' 0.5) mapping ++ [Pow line]
 evalExpression line e@(ExpressionList xs) mapping = evalExpressionList line e mapping
 evalExpression line s@(Statement _ _) mapping = evalStatement line s mapping
-evalExpression line (Constant i) mapping = generatePush line i
-evalExpression line v@(Variable i) mapping = generatePush line v
+evalExpression line (Constant i) mapping = generatePush line i mapping
+evalExpression line v@(Variable i) mapping = generatePush line v mapping
+evalExpression line a@(Array' _ _ _) mapping = generatePush line a mapping
 
 evalIfThenStatement line (Constant (Integer' i)) mapping = 
     let jump = VIntegral $ renumberLine i mapping in
@@ -542,7 +589,16 @@ evalIfThenStatement line (Constant (Integer' i)) mapping =
 evalIfThenStatement line e mapping = [Push line $ VStatement $ evalExpression line e mapping] ++ [IfThen line]
 
 evalLetStatement line (ExpressionList ((Variable s):xs)) mapping = 
-    generatePush line s ++ evalExpressionList line (ExpressionList xs) mapping ++ [Store line]
+    generatePush line s mapping ++ evalExpressionList line (ExpressionList xs) mapping ++ [Store line]
+evalLetStatement line (ExpressionList (a@(Array' s i b):xs)) mapping = 
+    generatePush line a mapping ++ evalExpressionList line (ExpressionList xs) mapping ++ [AStore line]
+
+-- Assumes "on" statement was already extracted
+evalOnGoStatement line (ExpressionList (e:(IntegerList is):(Statement g _):rest)) mapping =
+    let is' = map (\(Constant (Integer' i)) -> renumberLine i mapping) is in
+        evalExpression line e mapping ++ [Push line (VIntegerList is')] ++ 
+        (if g == "goto" then [OnGoto line]
+        else [Push line (VIntegral (line + 1)), PushCallstack line, OnGosub line])
 
 -- evalStatement deals with things like if, for, goto, etc.
 evalStatement line None mapping = []
@@ -553,25 +609,28 @@ evalStatement line (Statement "input" e) mapping = evalExpression line e mapping
 evalStatement line (Statement "print" e) mapping = evalExpression line e mapping ++ [Print line]
 evalStatement line (Statement "print!" e) mapping = evalExpression line e mapping ++ [PrintBang line]
 evalStatement line (Statement "let" e) mapping = evalLetStatement line e mapping
-evalStatement line (Statement "for" (ExpressionList ((Variable v):es))) mapping = generatePush line v ++ evalExpressionList line (ExpressionList es) mapping
+evalStatement line (Statement "for" (ExpressionList ((Variable v):es))) mapping = generatePush line v mapping ++ evalExpressionList line (ExpressionList es) mapping
 evalStatement line (Statement "tab" e) mapping = evalExpression line e mapping ++ [Spaces line]
+evalStatement line (Statement "on" e) mapping = evalOnGoStatement line e mapping
+evalStatement line (Statement "dim" a@(Array' s i b)) mapping = 
+    generateSimpleArrayPush line a mapping ++ [if i == 1 then NewArray line else NewArray2D line]
 evalStatement line (Statement "to" (ExpressionList ((Variable (String' v)):e:es))) mapping =
     evalExpression line e mapping ++ [Store line] ++ [Push line (VString (v ++ "maxrange"))] ++ evalExpressionList line (ExpressionList es) mapping ++ [Store line] ++
     [Push line (VIntegral $ line + 1)] ++ [PushCallstack line]
 evalStatement line (Statement "next" (Variable var@(String' v))) mapping =
-    generatePush line var ++ generatePush line var ++ [Load line] ++ [Push line (VIntegral 1)] ++ [Add line] ++ [Store line] ++ -- This increments the variable
-    generatePush line var ++ [Load line] ++ [Push line (VString (v ++ "maxrange"))] ++ [Load line] ++ [LEqual line] ++ -- This performs the comparison to see if the loop is done
+    generatePush line var mapping ++ generatePush line var mapping ++ [Load line] ++ [Push line (VIntegral 1)] ++ [Add line] ++ [Store line] ++ -- This increments the variable
+    generatePush line var mapping ++ [Load line] ++ [Push line (VString (v ++ "maxrange"))] ++ [Load line] ++ [LEqual line] ++ -- This performs the comparison to see if the loop is done
     [Push line $ VStatement $ [ -- Creating code which can jump to the top of the loop if necessary
         Push line (VString (v ++ "jmp")), PopCallstack line, Store line, -- Stores the jump location in variable (v ++ jmp)
         Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the next iteration to see it again)
         Push line (VString (v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps to it
         ]] ++ [IfThen line] ++ [Push line (VString (v ++ "jmp"))] ++ [PopCallstack line] ++ [Store line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
 evalStatement line (Statement "goto" (Integer' i)) mapping = 
-    generatePush line (Integer' $ renumberLine i mapping) ++ [Goto line]
+    generatePush line (Integer' $ renumberLine i mapping) mapping ++ [Goto line]
 evalStatement line (Statement "gosub" (Integer' i)) mapping = 
     let renumbered = renumberLine i mapping 
         nextLine = line + 1 in
-        generatePush line (Integer' renumbered) ++ generatePush line (Integer' nextLine) ++
+        generatePush line (Integer' renumbered) mapping ++ generatePush line (Integer' nextLine) mapping ++
         [PushCallstack line] ++ [Goto line]
 evalStatement line (Statement "return" _) mapping = [PopCallstack line] ++ [Goto line]
 evalStatement line e@(ExpressionList _) mapping = evalExpressionList line e mapping
