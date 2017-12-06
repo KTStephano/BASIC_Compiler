@@ -528,6 +528,9 @@ printBasic ((Line l x):xs) = do
     putStr (show l ++ ": ")
     putStrLn (show x)
     printBasic xs
+printBasic (x:xs) = do
+    putStrLn (show x)
+    printBasic xs
 
 translateSexpr' :: Sexpr -> Maybe [Basic]
 translateSexpr' Nil = Just []
@@ -561,6 +564,7 @@ translateSexpr s = let result = translateSexpr' s in
 
 renumber :: [Basic] -> Int -> Int -> [(Int, Int)] -> ([Basic], [(Int, Int)])
 renumber [] _ _ mapping = ([], mapping)
+renumber (None:ls) line newline mapping = renumber ls line newline mapping
 renumber basic@((Line l b):ls) line newline mapping = if l /= line then renumber basic l (newline + 1) mapping
                                                       else let s = [Line newline b]
                                                                (ys, mapping') = renumber ls line newline mapping
@@ -669,6 +673,7 @@ evalStatement line (Statement "gosub" (Integer' i)) mapping =
 evalStatement line (Statement "return" _) mapping = [PopCallstack line] ++ [Goto line]
 evalStatement line e@(ExpressionList _) mapping = evalExpressionList line e mapping
 evalStatement line e@(Expression _ _) mapping = evalExpression line e mapping
+evalStatement line _ mapping = []
 
 --evalStatement :: Basic -> [(Int, Int)] -> [Bytecode]
 evalStatementList _ None mapping = []
