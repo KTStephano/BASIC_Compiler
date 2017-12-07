@@ -505,7 +505,11 @@ expression =
         (Symbol s) <- item'
         if (s `elem` ["and", "or"]) then do
             e <- expression
-            return $ Expression s $ ExpressionList [a, e]
+            --return $ Expression s $ ExpressionList [a, e]
+            case e of
+                (Expression op@"or" (ExpressionList (l:es))) -> return $ Expression op $ ExpressionList $ [Expression s $ ExpressionList [a, l]] ++ es
+                (Expression op@"and" (ExpressionList (l:es))) -> return $ Expression op $ ExpressionList $ [Expression s $ ExpressionList [a, l]] ++ es
+                _ -> return $ Expression s $ ExpressionList [a, e]
         else mzero) `mplus`
     addExp `mplus` value
 
