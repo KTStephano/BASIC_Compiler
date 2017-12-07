@@ -49,7 +49,7 @@ popStack = StateT $ \e@(program, env, rest, stack, callstack) ->
         else do
             let rst = reverse stack
             let x = head rst
-            let rst' = filter (\e -> e /= x) stack
+            let rst' = reverse $ drop 1 rst
             return (x, (program, env, rest, rst', callstack))
 
 popCallStack :: VM Value
@@ -61,7 +61,7 @@ popCallStack = StateT $ \e@(program, env, rest, stack, callstack) ->
             let rst = reverse callstack
             -- pull out the head of the reversed stack
             let x = head rst
-            let rst' = filter (\e -> e /= x) callstack
+            let rst' = reverse $ drop 1 rst
             return (x, (program, env, rest, stack, rst'))
 
 findEnv :: String -> VM (Maybe Binding)

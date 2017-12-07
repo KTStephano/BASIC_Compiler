@@ -151,6 +151,7 @@ instance Show Value where
     show (VSymbol vr vl) = show vl
     show (VStatement s) = show s
     show (VIntegerList is) = show is
+    show (VDataRef v) = "#reference"
 
 {-
 
