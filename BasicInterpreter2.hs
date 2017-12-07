@@ -97,22 +97,32 @@ printEnvironment [] = putStr ""
 printEnvironment (x:xs) = do
 -}
 
+-- Pops a value off the stack and returns it unchanged
 unary' :: VM Value
 unary' = popStack
 
+-- Pops a value off the stack. However, if the value is a VDataRef,
+-- it will resolve the actual value of the reference. Along with this,
+-- if the value is a VSymbole (s, v), it will return v (and dereference v if necessary)
 unary :: VM Value
 unary = do
     result <- unary'
     case result of
-        (VSymbol s v) -> return v
-        _ -> return result
+        (VSymbol s v) -> do
+            varType <- liftIO (resolveVarTypeValue v)
+            return varType
+        v@_ -> do
+            varType <- liftIO (resolveVarTypeValue v)
+            return varType
 
+-- Works the same as unary', but for two values
 binary' :: VM (Value, Value)
 binary' = do
     y <- unary'
     x <- unary'
     return (x, y)
 
+-- Works the same as unary, but for two values
 binary :: VM (Value, Value)
 binary = do
     y <- unary
@@ -168,6 +178,8 @@ input = do
     s <- liftIO $ getLine
     updateEnv var (resolveStringType s)
 
+-- If the type of the given Value is VDataRef, this will extract the actual
+-- value (dereference), otherwise it will just return the input unchanged
 resolveVarTypeValue value = 
     case value of
         (VDataRef var) -> do
@@ -188,6 +200,22 @@ printBang = do
             case f of
                 VString s -> liftIO $ putStr (filter (\p -> '"' /= p) s)
                 _ -> liftIO $ putStr (show f)
+
+logical op = do
+    (x, y) <- binary
+    case (x, y) of
+        (VIntegral i, VIntegral ii) -> return $ VBool $ op (fromIntegral i) (fromIntegral ii)
+        (VIntegral i, VFloating f) -> return $ VBool $ op (fromIntegral i) f
+        (VFloating f, VIntegral i) -> return $ VBool $ op f (fromIntegral i)
+        (VFloating f, VFloating ff) -> return $ VBool $ op f ff
+
+arithmetic op = do
+    (x, y) <- binary
+    case (x, y) of
+        (VIntegral i, VIntegral ii) -> return $ VIntegral $ round $ op (fromIntegral i) (fromIntegral ii)
+        (VIntegral i, VFloating f) -> return $ VFloating $ op (fromIntegral i) f
+        (VFloating f, VIntegral i) -> return $ VFloating $ op f (fromIntegral i)
+        (VFloating f, VFloating ff) -> return $ VFloating $ op f ff
 
 printStack [] = putStrLn ""
 printStack (x:xs) = do
@@ -213,8 +241,37 @@ vm' = do
             input
             vm'
         Load l -> do
-            val <- load
-            pushStack val
+            load >>= pushStack
+            vm'
+        Add l -> do
+            arithmetic (+) >>= pushStack
+            vm'
+        Sub l -> do
+            arithmetic (-) >>= pushStack
+            vm'
+        Mult l -> do
+            arithmetic (*) >>= pushStack
+            vm'
+        Div l -> do
+            arithmetic (/) >>= pushStack
+            vm'
+        Equal l -> do
+            logical (==) >>= pushStack
+            vm'
+        NotEqual l -> do
+            logical (/=) >>= pushStack
+            vm'
+        Greater l -> do
+            logical (>) >>= pushStack
+            vm'
+        GEqual l -> do
+            logical (>=) >>= pushStack
+            vm'
+        Less l -> do
+            logical (<) >>= pushStack
+            vm'
+        LEqual l -> do
+            logical (<=) >>= pushStack
             vm'
 
 vm program = do
