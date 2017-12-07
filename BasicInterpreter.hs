@@ -73,8 +73,8 @@ mathCheck = "(define mathtest '((100 print \"math test\")" ++
                                "(400 let a2 = -1)" ++
                                "(500 print abs (a3))))"
 
-powerCheck = "(defime powertest '((100 let x  = (10 ^ 0.5))" ++
-                                 "(200 print x)))"
+powerCheck = "(defime powertest '((100 if (-3 > 1 and -1 > 1) or 10 > 2 then print \"Why would you check that\")" ++
+                                 "(200 print 1000)))"
 
 
 
@@ -301,6 +301,14 @@ vm program env ((Rand l):rest) frame outFrame = do
 vm program env ((Pow l):rest) frame outFrame = do
   let (frame', val) = getPower frame
   vm program env rest (push frame' val) outFrame
+
+vm program env ((And l):rest) frame outFrame = do
+  let(frame',val) = getAnd frame
+  vm program env rest (push frame' val) outFrame
+vm program env ((Or l):rest) frame outFrame = do
+  let (frame',val) = getOr frame
+  vm program env rest (push frame' val) outFrame
+
 vm program env ((PushCallstack l):rest) frame outFrame = do
     let (frame', val) = unary frame
     vm program env rest frame' (push outFrame val)
@@ -320,6 +328,20 @@ vm program env ((PrintBang l):rest) frame outFrame= do
 vm program env ((Print l):rest) frame outFrame= do
     print' frame
     vm program env rest (Frame []) outFrame
+
+getAnd frame = let (frame',(x,y)) = binary frame
+                      in case (x,y) of
+                           (VBool True, VBool True) -> (frame',VBool True)
+                           (VBool False,VBool False) -> (frame',VBool True)
+                           (_,_) -> (frame', VBool False)
+                           
+getOr frame = let (frame',(x,y)) = binary frame
+                     in case (x,y) of
+                          (VBool True,VBool True) -> (frame',VBool True)
+                          (VBool True,VBool False) -> (frame',VBool True)
+                          (VBool False,VBool True) -> (frame',VBool True)
+                          (VBool False,VBool False) -> (frame',VBool False)
+                          
 
 getAbs (VString val) = VFloating (abs (read val :: Double))
 getAbs (VFloating val) = VFloating (abs val)
