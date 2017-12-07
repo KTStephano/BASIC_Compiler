@@ -19,6 +19,13 @@ type VMState = (Program, Environment, Program, Stack, CallStack)
 
 type VM a = StateT VMState IO a
 
+foo = "(define foo " ++
+    "'((100 input \"What is the value of A\" a )" ++
+    " (110 input \"What is the value of B\" b )" ++
+    " (120 input \"What is the value of C\" c )" ++
+    " (130 let d = ((b * b) - (4.0 * (a * c))) )" ++
+    " (140 print d) (150 end)))"
+
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
     case rest of
@@ -242,6 +249,9 @@ vm' = do
             vm'
         Load l -> do
             load >>= pushStack
+            vm'
+        Store l -> do
+            store
             vm'
         Add l -> do
             arithmetic (+) >>= pushStack
