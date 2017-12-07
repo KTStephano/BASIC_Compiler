@@ -15,6 +15,7 @@ import Data.Char
 import Control.Monad
 import Control.Applicative hiding (many)
 import System.IO.Unsafe
+import Data.IORef
 --import Control.Monad.State
 import Control.Monad.Trans.State
 
@@ -138,7 +139,8 @@ instance Show Bytecode where
     show (OnGosub l) = "ongosub"
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
-             VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) deriving (Eq)
+             VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) |
+             VDataRef (IORef Value) deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
