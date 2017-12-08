@@ -31,6 +31,19 @@ simpleArrayPrint = "(define foo '((100 dim w (10)) \
                    \(250 let w(3) = 1024) \
                    \(300 print w (2) : print w(3) : print w(4)))))"
 
+testEverything = "(define test '((100 if 10 > 2 then print 10)" ++
+                 "(150 gosub 190)" ++ 
+                 "(160 print \"good job it gosubbed\")" ++
+                 "(170 end)" ++
+                 "(190 print \"skipped it\")" ++
+                 "(200 return)" ++
+                 "(500 end)))"
+
+testRnd = "(define test '((100 print rnd(20))))"
+
+guess = "(define guess '( (100 print tab(33) \"GUESS\" ) (110 print tab(15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (120 print ) (130 print \"THIS IS A NUMBER GUESSING GAME. I'LL THINK\" ) (140 print \"OF A NUMBER BETWEEN 1 AND ANY LIMIT YOU WANT.\" ) (150 print \"THEN YOU HAVE TO GUESS WHAT IT IS.\" ) (160 print ) (170 input \"WHAT LIMIT DO YOU WANT\" l ) (180 print ) (190 let l1 = int (((log (l) / log (2)) + 1)) ) (200 print \"I'M THINKING OF A NUMBER BETWEEN 1 AND \" l ) (210 let g = 1 ) (220 let m = int (((l * rnd (1)) + 1)) ) (230 print ) (240 input \"WHAT IS YOUR GUESS\" n ) (250 print ) (260 if (n > 0) then 290 ) (270 print \"ILLEGAL VALUE.\" ) (280 goto 230 ) (290 if (n <= l) then 320 ) (300 print \"ILLEGAL VALUE.\" ) (310 goto 230 ) (320 if (n = m) then 390 ) (330 let g = (g + 1) ) (340 if (n > m) then 370 ) (350 print \"TOO LOW. TRY A BIGGER ANSWER.\" ) (360 goto 230 ) (370 print \"TOO HIGH. TRY A SMALLER ANSWER.\" ) (380 goto 230 ) (390 print \"THAT'S IT! YOU GOT IT IN \" g \" TRIES.\" ) (400 if (g < l1) then 440 ) (410 if (g = l1) then 450 ) (420 print \"YOU SHOULD HAVE BEEN ABLE TO GET IT IN ONLY \" l1 \" TRIES.\" ) (430 end ) (440 print! \"VERY \" ) (450 print \"GOOD.\" ) (460 end )))"
+
+
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
     case rest of
@@ -60,7 +73,7 @@ popStack = StateT $ \e@(program, env, rest, stack, callstack) ->
 popCallStack :: VM Value
 popCallStack = StateT $ \e@(program, env, rest, stack, callstack) ->
     do
-        if stack == [] then return (Null, e)
+        if callstack == [] then return (Null, e)
         else do
             -- reverse callstack
             let rst = reverse callstack
@@ -241,7 +254,7 @@ resolveVarTypeValue value =
 print' = do
     printBang
     liftIO $ putStrLn ""
-
+{-
 printBang = do
     (program, env, rest, stack, callstack) <- get
     forM stack $ \s -> do
@@ -251,8 +264,8 @@ printBang = do
                 f <- liftIO $ resolveVarTypeValue s
                 liftIO $ putStr (show f)
     put (program, env, rest, [], callstack)
+-}
 
-{-
 printBang = do
     val <- unary
     case val of
@@ -263,7 +276,7 @@ printBang = do
             case f of
                 VString s -> liftIO $ putStr (filter (\p -> '"' /= p) s)
                 _ -> liftIO $ putStr (show f)
--}
+
 
 logical op = do
     (x, y) <- binary
@@ -272,6 +285,74 @@ logical op = do
         (VIntegral i, VFloating f) -> return $ VBool $ op (fromIntegral i) f
         (VFloating f, VIntegral i) -> return $ VBool $ op f (fromIntegral i)
         (VFloating f, VFloating ff) -> return $ VBool $ op f ff
+
+getStatement = do
+  (x,ys) <- binary
+  case (x,ys) of
+    (VBool True, VStatement ys) -> do
+      (program,env,rest,stack,callstack) <- get
+      put(program,env,ys++rest,stack,callstack)
+    (_,_) -> return ()
+
+getSpaces = do
+  (VIntegral num) <- unary
+  return $ VString $ replicate num ' '
+
+getFloor = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VIntegral x
+    (VFloating x) -> return $ VIntegral $ floor x
+    
+getAbs = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VIntegral $ abs x
+    (VFloating x) -> return $ VFloating $ abs x
+
+getLog = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ (log (fromIntegral x))
+    (VFloating x) -> return $ VFloating $ log x
+
+getPower = do
+  (x,y) <- binary
+  case (x,y) of
+    (VIntegral i, VIntegral ii) -> return $ VIntegral $ i ^ ii
+    (VFloating f, VIntegral i) -> return $ VFloating $ f ** (fromIntegral i)
+    (VIntegral i, VFloating f) -> return $ VFloating $ (fromIntegral i) ** f
+    (VFloating f, VFloating ff) -> return $ VFloating $ f ** ff
+
+getRand = do
+  (VIntegral num) <- unary
+  rand <- liftIO $ (randomRIO(0,(fromIntegral num)) :: IO Double)
+  return $ VFloating  rand ---- $ VFloating $ unsafePerformIO rand
+
+setLineNum = do
+  (VIntegral line) <- unary
+  (program,env,rest,stack,callstack) <- get
+  let newRest = newProgram program line False
+  put(program,env,newRest,stack,callstack)
+  
+getOr = do
+  (x,y) <- binary
+  case (x,y) of
+    (VBool True,_) -> return $ VBool True
+    (_,VBool True) -> return $ VBool True
+    (_,_) -> return $ VBool False
+
+getAnd = do
+  (x,y) <- binary
+  case (x,y) of
+    (VBool True, VBool True) -> return $ VBool True
+    (_,_) -> return $ VBool False
+
+newProgram [] _ _ = []
+newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l True) else newProgram xs l b
+{-
+getLineNum frame = let (frame', VIntegral line) = unary frame in (frame', line)
+-}
 
 arithmetic op = do
     (x, y) <- binary
@@ -339,6 +420,45 @@ vm' = do
             vm'
         LEqual l -> do
             logical (<=) >>= pushStack
+            vm'
+        Spaces l -> do
+            getSpaces >>= pushStack
+            vm'
+        CastInt l -> do
+            getFloor >>= pushStack
+            vm'
+        Abs l -> do
+            getAbs >>= pushStack
+            vm'
+        Log l -> do
+            getAbs >>= pushStack
+            vm'
+        Pow l -> do
+            getPower >>= pushStack
+            vm'
+        Rand l -> do
+            getRand >>= pushStack
+            vm'
+        Or l -> do
+            getOr >>= pushStack
+            vm'
+        And l -> do
+            getAnd >>= pushStack
+            vm'
+        OnGoto l -> do
+            setLineNum
+            vm'
+        PushCallstack l -> do
+            unary >>= pushCallStack
+            vm'
+        PopCallstack l -> do
+            popCallStack >>= pushStack
+            vm'
+        IfThen l -> do
+            getStatement
+            vm'
+        Goto l -> do
+            setLineNum
             vm'
         NewArray l -> do
             newArray
