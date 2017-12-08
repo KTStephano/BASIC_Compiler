@@ -29,6 +29,13 @@ arrCheck = "(define arrtest '((100 dim a$ (10))" ++
                              "(140 print a$ (3))" ++
                              "(150 print a$ (2))))"
 
+ongoCheck = "(define test '((100 on 2 goto 110 120 130 140)" ++
+                           "(110 print \"hey\")" ++
+                           "(120 print \"you skipped hey\")" ++
+                           "(130 let x = 10)" ++
+                           "(140 print x)" ++
+                           "(150 end)))"
+
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
     case rest of
@@ -102,10 +109,6 @@ updateEnv str value = do
             liftIO (writeIORef var value)
             return v
 
-{-
-printEnvironment [] = putStr ""
-printEnvironment (x:xs) = do
--}
 
 -- Pops a value off the stack and returns it unchanged
 unary' :: VM Value
@@ -300,11 +303,7 @@ printBang = do
 
 logical op = do
     (x, y) <- binary
-    case (x, y) of
-        (VIntegral i, VIntegral ii) -> return $ VBool $ op (fromIntegral i) (fromIntegral ii)
-        (VIntegral i, VFloating f) -> return $ VBool $ op (fromIntegral i) f
-        (VFloating f, VIntegral i) -> return $ VBool $ op f (fromIntegral i)
-        (VFloating f, VFloating ff) -> return $ VBool $ op f ff
+    return $ VBool $ op x y
 
 getStatement = do
   (x,ys) <- binary
@@ -354,6 +353,12 @@ setLineNum = do
   (program,env,rest,stack,callstack) <- get
   let newRest = newProgram program line False
   put(program,env,newRest,stack,callstack)
+
+setListLineNum = do
+  (VIntegral line, VIntegerList list) <- binary
+  (program,env,rest,stack,callstack) <- get
+  let newRest = newProgram program (list !! (line - 1)) False
+  put(program,env,newRest,stack,callstack)
   
 getOr = do
   (x,y) <- binary
@@ -373,11 +378,7 @@ newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l 
 
 arithmetic op = do
     (x, y) <- binary
-    case (x, y) of
-        (VIntegral i, VIntegral ii) -> return $ VIntegral $ round $ op (fromIntegral i) (fromIntegral ii)
-        (VIntegral i, VFloating f) -> return $ VFloating $ op (fromIntegral i) f
-        (VFloating f, VIntegral i) -> return $ VFloating $ op f (fromIntegral i)
-        (VFloating f, VFloating ff) -> return $ VFloating $ op f ff
+    return $ op x y
 
 printStack [] = putStrLn ""
 printStack (x:xs) = do
@@ -387,6 +388,7 @@ printStack (x:xs) = do
 
 vm' = do
     bytecode <- nextInstruction
+    liftIO $ print bytecode
     case bytecode of
         End l -> do
             liftIO $ putStr ""
@@ -463,7 +465,7 @@ vm' = do
             getAnd >>= pushStack
             vm'
         OnGoto l -> do
-            setLineNum
+            setListLineNum
             vm'
         PushCallstack l -> do
             unary >>= pushCallStack
