@@ -483,7 +483,7 @@ main = do
     else do
         handle <- openFile (args !! 0) ReadMode
         contents <- hGetContents handle
-        let parsed = analyze contents
+        let parsed = analyze (filter (\s -> s /= '\n' && s /= '\r') contents)
         case parsed of
             (Symbol _) -> putStrLn "Error parsing input"
             _ -> do
