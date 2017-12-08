@@ -109,6 +109,14 @@ instance Ord Value where
     (VString s) <= (VString ss) = s <= ss
     (VList ls) <= (VList ls') = ls <= ls'
 
+instance Fractional Value where
+    (VIntegral i) / (VIntegral ii) = VIntegral $ round $ (fromIntegral i) / (fromIntegral ii)
+    (VIntegral i) / (VFloating f) = VFloating $ (fromIntegral i) / f
+    (VFloating f) / (VIntegral i) = VFloating $ f / (fromIntegral i)
+    (VFloating f) / (VFloating ff) = VFloating $ f / ff
+
+    fromRational f = VFloating $ fromRational f
+
 instance Num Value where
     (VIntegral i) + (VIntegral ii) = VIntegral $ i + ii
     (VIntegral i) + (VFloating f) = VFloating $ (fromIntegral i) + f
