@@ -99,6 +99,9 @@ instance Eq Value where
     (VBool b) == (VBool bb) = b == bb
     (VList ls) == (VList ls') = ls == ls'
     (VString s) == (VString ss) = s == ss
+    Null == Null = True
+    Null == _ = False
+    _ == Null = False
 
 instance Ord Value where
     (VIntegral i) <= (VIntegral ii) = i <= ii
