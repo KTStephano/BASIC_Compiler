@@ -303,7 +303,18 @@ printBang = do
 
 logical op = do
     (x, y) <- binary
-    return $ VBool $ op x y
+    case (x, y) of
+        (VDataRef ref, VDataRef ref') -> do
+            x' <- liftIO $ resolveVarTypeValue x
+            y' <- liftIO $ resolveVarTypeValue y
+            return $ VBool $ op x' y'
+        (VDataRef ref, _) -> do
+            x' <- liftIO $ resolveVarTypeValue x
+            return $ VBool $ op x' y
+        (_, VDataRef ref) -> do
+            y' <- liftIO $ resolveVarTypeValue y
+            return $ VBool $ op x y'
+        (_, _) -> return $ VBool $ op x y
 
 getStatement = do
   (x,ys) <- binary
@@ -378,7 +389,18 @@ newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l 
 
 arithmetic op = do
     (x, y) <- binary
-    return $ op x y
+    case (x, y) of
+        (VDataRef ref, VDataRef ref') -> do
+            x' <- liftIO $ resolveVarTypeValue x
+            y' <- liftIO $ resolveVarTypeValue y
+            return $ op x' y'
+        (VDataRef ref, _) -> do
+            x' <- liftIO $ resolveVarTypeValue x
+            return $ op x' y
+        (_, VDataRef ref) -> do
+            y' <- liftIO $ resolveVarTypeValue y
+            return $ op x y'
+        (_, _) -> return $ op x y
 
 printStack [] = putStrLn ""
 printStack (x:xs) = do
