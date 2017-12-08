@@ -26,6 +26,11 @@ foo = "(define foo " ++
     " (130 let d = ((b * b) - (4.0 * (a * c))) )" ++
     " (140 print d) (150 end)))"
 
+simpleArrayPrint = "(define foo '((100 dim w (10)) \
+                   \(200 let w (2) = \"hello\") \
+                   \(250 let w(3) = 1024) \
+                   \(300 print w (2) : print w(3) : print w(4)))))"
+
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
     case rest of
@@ -163,6 +168,46 @@ load = do
             let result = VSymbol s v
             return result
 
+-- Loads a reference from a 1-dimensional array onto the stack
+-- At the time of the call, the stack looks like:
+--      [ var_name,
+--        index ]
+-- After the call, the stack looks like:
+--      [ var_reference ]
+aload :: VM Value
+aload = do
+    (VString var, VIntegral index) <- binary
+    (Just (varName, array')) <- findEnv var -- If this ever fails it is a critical error and should crash the program
+    (VList vs) <- (liftIO $ resolveVarTypeValue array') -- This also should not fail
+    let (VString refName) = (vs !! (index - 1)) -- If this fails it is also invalid...
+    (Just (_, ref)) <- findEnv refName -- Basically nothing in this function is allowed to fail
+    return ref
+
+-- Stores a value into a reference from an array. At the time of the
+-- call, the stack looks like:
+--      [ var_reference 
+--        value ]
+-- And after the call the stack is empty.
+astore :: VM ()
+astore = do
+    val <- unary
+    (VDataRef ref) <- unary' -- Make sure to use unary' because unary dereferences things
+    liftIO (writeIORef ref val)
+
+newArray' :: String -> Int -> [Value]
+newArray' name 0 = []
+newArray' name size = newArray' name (size - 1) ++ [VString $ "#" ++ name ++ show size]
+
+-- Takes a name and a number and creates a 1-dimensional array
+-- with that many elements
+newArray = do
+    (VString var, VIntegral size) <- binary
+    let array' = newArray' var size
+    forM_ array' $ \(VString s) -> do
+        updateEnv s Null
+        return (VString s)
+    updateEnv var (VList array')
+
 store :: VM Value
 store = do
     (var, val) <- binary
@@ -198,6 +243,17 @@ print' = do
     liftIO $ putStrLn ""
 
 printBang = do
+    (program, env, rest, stack, callstack) <- get
+    forM stack $ \s -> do
+        case s of
+            VString s' -> liftIO $ putStr (filter (\p -> '"' /= p) s')
+            _ -> do
+                f <- liftIO $ resolveVarTypeValue s
+                liftIO $ putStr (show f)
+    put (program, env, rest, [], callstack)
+
+{-
+printBang = do
     val <- unary
     case val of
         Null -> liftIO $ putStr ""
@@ -207,6 +263,7 @@ printBang = do
             case f of
                 VString s -> liftIO $ putStr (filter (\p -> '"' /= p) s)
                 _ -> liftIO $ putStr (show f)
+-}
 
 logical op = do
     (x, y) <- binary
@@ -282,6 +339,15 @@ vm' = do
             vm'
         LEqual l -> do
             logical (<=) >>= pushStack
+            vm'
+        NewArray l -> do
+            newArray
+            vm'
+        ALoad l -> do
+            aload >>= pushStack
+            vm'
+        AStore l -> do
+            astore
             vm'
 
 vm program = do

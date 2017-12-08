@@ -140,7 +140,7 @@ instance Show Bytecode where
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) |
-             VDataRef (IORef Value) deriving (Eq)
+             VDataRef (IORef Value) | VList [Value] deriving (Eq)
 
 instance Show Value where
     show (VIntegral x) = show x
