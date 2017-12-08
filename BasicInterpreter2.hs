@@ -9,6 +9,7 @@ import System.Random
 import Data.IORef
 import System.IO
 import Control.Monad.Trans.State
+import System.Environment
 
 type Stack = [Value]
 type CallStack = Stack
@@ -473,3 +474,18 @@ vm' = do
 vm program = do
     (out, _) <- runStateT vm' (program, [], program, [], [])
     return out
+
+main :: IO ()
+main = do
+    args <- getArgs
+    if (length args == 0) then
+        putStrLn "No file input"
+    else do
+        handle <- openFile (args !! 0) ReadMode
+        contents <- hGetContents handle
+        let parsed = analyze contents
+        case parsed of
+            (Symbol _) -> putStrLn "Error parsing input"
+            _ -> do
+                let bytecode = compile parsed
+                vm bytecode
