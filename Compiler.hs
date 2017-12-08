@@ -96,12 +96,44 @@ instance Eq Value where
     (VIntegral i) == (VFloating f) = (fromIntegral i) == f
     (VFloating f) == (VIntegral i) = f == (fromIntegral i)
     (VFloating f) == (VFloating ff) = f == ff
+    (VBool b) == (VBool bb) = b == bb
+    (VList ls) == (VList ls') = ls == ls'
+    (VString s) == (VString ss) = s == ss
 
 instance Ord Value where
     (VIntegral i) <= (VIntegral ii) = i <= ii
     (VIntegral i) <= (VFloating f) = (fromIntegral i) <= f
     (VFloating f) <= (VIntegral i) = f <= (fromIntegral i)
     (VFloating f) <= (VFloating ff) = f <= ff
+    (VBool b) <= (VBool bb) = b <= bb
+    (VString s) <= (VString ss) = s <= ss
+    (VList ls) <= (VList ls') = ls <= ls'
+
+instance Num Value where
+    (VIntegral i) + (VIntegral ii) = VIntegral $ i + ii
+    (VIntegral i) + (VFloating f) = VFloating $ (fromIntegral i) + f
+    (VFloating f) + (VIntegral i) = VFloating $ f + (fromIntegral i)
+    (VFloating f) + (VFloating ff) = VFloating $ f + ff
+    (VString s) + (VString ss) = VString $ s ++ ss
+    (VList ls) + (VList ls') = VList $ ls ++ ls'
+
+    (VIntegral i) * (VIntegral ii) = VIntegral $ i * ii
+    (VIntegral i) * (VFloating f) = VFloating $ (fromIntegral i) * f
+    (VFloating f) * (VIntegral i) = VFloating $ f * (fromIntegral i)
+    (VFloating f) * (VFloating ff) = VFloating $ f * ff
+
+    abs (VIntegral i) = VIntegral $ abs (fromIntegral i)
+    abs (VFloating f) = VFloating $ abs f
+
+    signum (VIntegral i) = if i == 0 then VIntegral 0
+                           else if i > 0 then VIntegral 1 else VIntegral (-1)
+    signum (VFloating f) = if f == 0.0 then VFloating 0.0
+                           else if f > 0.0 then VFloating 1.0 else VFloating (-1.0)
+
+    fromInteger i = VIntegral (fromIntegral i)
+
+    negate (VIntegral i) = VIntegral $ i * (-1)
+    negate (VFloating f) = VFloating $ f * (-1.0)
 
 instance Show Value where
     show (VIntegral x) = show x
