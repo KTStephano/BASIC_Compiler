@@ -20,30 +20,14 @@ type VMState = (Program, Environment, Program, Stack, CallStack)
 
 type VM a = StateT VMState IO a
 
-foo = "(define foo " ++
-    "'((100 input \"What is the value of A\" a )" ++
-    " (110 input \"What is the value of B\" b )" ++
-    " (120 input \"What is the value of C\" c )" ++
-    " (130 let d = ((b * b) - (4.0 * (a * c))) )" ++
-    " (140 print d) (150 end)))"
+arr2Check = "(define arrtest '((100 dim a$ (2 5))" ++
+                             "(130 a$ (1 1) = \"X\")" ++ 
+                             "(150 print a$ (2 5))))"
 
-simpleArrayPrint = "(define foo '((100 dim w (10)) \
-                   \(200 let w (2) = \"hello\") \
-                   \(250 let w(3) = 1024) \
-                   \(300 print w (2) : print w(3) : print w(4)))))"
-
-testEverything = "(define test '((100 if 10 > 2 then print 10)" ++
-                 "(150 gosub 190)" ++ 
-                 "(160 print \"good job it gosubbed\")" ++
-                 "(170 end)" ++
-                 "(190 print \"skipped it\")" ++
-                 "(200 return)" ++
-                 "(500 end)))"
-
-testRnd = "(define test '((100 print rnd(20))))"
-
-guess = "(define guess '( (100 print tab(33) \"GUESS\" ) (110 print tab(15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (120 print ) (130 print \"THIS IS A NUMBER GUESSING GAME. I'LL THINK\" ) (140 print \"OF A NUMBER BETWEEN 1 AND ANY LIMIT YOU WANT.\" ) (150 print \"THEN YOU HAVE TO GUESS WHAT IT IS.\" ) (160 print ) (170 input \"WHAT LIMIT DO YOU WANT\" l ) (180 print ) (190 let l1 = int (((log (l) / log (2)) + 1)) ) (200 print \"I'M THINKING OF A NUMBER BETWEEN 1 AND \" l ) (210 let g = 1 ) (220 let m = int (((l * rnd (1)) + 1)) ) (230 print ) (240 input \"WHAT IS YOUR GUESS\" n ) (250 print ) (260 if (n > 0) then 290 ) (270 print \"ILLEGAL VALUE.\" ) (280 goto 230 ) (290 if (n <= l) then 320 ) (300 print \"ILLEGAL VALUE.\" ) (310 goto 230 ) (320 if (n = m) then 390 ) (330 let g = (g + 1) ) (340 if (n > m) then 370 ) (350 print \"TOO LOW. TRY A BIGGER ANSWER.\" ) (360 goto 230 ) (370 print \"TOO HIGH. TRY A SMALLER ANSWER.\" ) (380 goto 230 ) (390 print \"THAT'S IT! YOU GOT IT IN \" g \" TRIES.\" ) (400 if (g < l1) then 440 ) (410 if (g = l1) then 450 ) (420 print \"YOU SHOULD HAVE BEEN ABLE TO GET IT IN ONLY \" l1 \" TRIES.\" ) (430 end ) (440 print! \"VERY \" ) (450 print \"GOOD.\" ) (460 end )))"
-
+arrCheck = "(define arrtest '((100 dim a$ (10))" ++
+                             "(130 a$ (2) = \"X\")" ++
+                             "(140 print a$ (3))" ++
+                             "(150 print a$ (2))))"
 
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
@@ -197,6 +181,15 @@ aload = do
     (Just (_, ref)) <- findEnv refName -- Basically nothing in this function is allowed to fail
     return ref
 
+aLoad2D = do
+  (VString var, VIntegral w, VIntegral h) <- ternary
+  (Just (varName, array')) <- findEnv var
+  (VList vs) <- (liftIO $ resolveVarTypeValue array')
+  let (VList bs) = vs !! (h - 1) 
+      (VString refName) = (bs !! (w - 1))
+  (Just (_,ref)) <- findEnv refName
+  return ref
+
 -- Stores a value into a reference from an array. At the time of the
 -- call, the stack looks like:
 --      [ var_reference 
@@ -222,6 +215,32 @@ newArray = do
         return (VString s)
     updateEnv var (VList array')
 
+help2D name 0 _ = []
+help2D name size index = help2D name (size - 1) index ++  [VString $ "#" ++ name ++ show (size -1) ++ "," ++ show index]
+
+newArray2D' name width height =  VList [VList $ help2D name width h | h <- [0..(height-1)]]
+
+newArray2D = do
+  (VString var, VIntegral width, VIntegral height) <- ternary
+
+  let (VList array') =  newArray2D' var width height
+  forM_ array' $ \(VList l) -> do
+     innerArray var l
+  updateEnv var (VList array')
+      
+{-
+      forM_ array $ \(VString s) -> do
+        updateEnv s Null
+        return (VString s)
+      updateEnv var (VList array')
+-}    
+innerArray var array = do
+  forM_ array $ \(VString s) -> do
+    updateEnv s Null
+    return (VString s)
+  --updateEnv var (VList array)
+
+  
 store :: VM Value
 store = do
     (var, val) <- binary
@@ -351,9 +370,6 @@ getAnd = do
 
 newProgram [] _ _ = []
 newProgram (x:xs) l b = if (line x == l) || (b == True) then x:(newProgram xs l True) else newProgram xs l b
-{-
-getLineNum frame = let (frame', VIntegral line) = unary frame in (frame', line)
--}
 
 arithmetic op = do
     (x, y) <- binary
@@ -464,8 +480,15 @@ vm' = do
         NewArray l -> do
             newArray
             vm'
+        NewArray2D l -> do
+            newArray2D
+            vm'
         ALoad l -> do
             aload >>= pushStack
+            vm'
+        ALoad2D l -> do
+            --putStrLn "lol"
+            aLoad2D >>= pushStack
             vm'
         AStore l -> do
             astore
