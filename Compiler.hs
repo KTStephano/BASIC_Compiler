@@ -89,7 +89,19 @@ instance Show Bytecode where
 
 data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) |
-             VDataRef (IORef Value) | VList [Value] deriving (Eq)
+             VDataRef (IORef Value) | VList [Value]
+
+instance Eq Value where
+    (VIntegral i) == (VIntegral ii) = i == ii
+    (VIntegral i) == (VFloating f) = (fromIntegral i) == f
+    (VFloating f) == (VIntegral i) = f == (fromIntegral i)
+    (VFloating f) == (VFloating ff) = f == ff
+
+instance Ord Value where
+    (VIntegral i) <= (VIntegral ii) = i <= ii
+    (VIntegral i) <= (VFloating f) = (fromIntegral i) <= f
+    (VFloating f) <= (VIntegral i) = f <= (fromIntegral i)
+    (VFloating f) <= (VFloating ff) = f <= ff
 
 instance Show Value where
     show (VIntegral x) = show x
@@ -101,6 +113,7 @@ instance Show Value where
     show (VStatement s) = show s
     show (VIntegerList is) = show is
     show (VDataRef v) = "#reference"
+    show (VList ls) = show ls
 
 {-
 
