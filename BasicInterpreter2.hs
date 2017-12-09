@@ -180,7 +180,7 @@ aload = do
     (VString var, VIntegral index) <- binary
     (Just (varName, array')) <- findEnv var -- If this ever fails it is a critical error and should crash the program
     (VList vs) <- (liftIO $ resolveVarTypeValue array') -- This also should not fail
-    let (VString refName) = (vs !! (index - 1)) -- If this fails it is also invalid...
+    let (VString refName) = (vs !! (fromIntegral $ index - 1)) -- If this fails it is also invalid...
     (Just (_, ref)) <- findEnv refName -- Basically nothing in this function is allowed to fail
     return ref
 
@@ -188,8 +188,8 @@ aLoad2D = do
   (VString var, VIntegral w, VIntegral h) <- ternary
   (Just (varName, array')) <- findEnv var
   (VList vs) <- (liftIO $ resolveVarTypeValue array')
-  let (VList bs) = vs !! (h - 1) 
-      (VString refName) = (bs !! (w - 1))
+  let (VList bs) = vs !! (fromIntegral $ h - 1) 
+      (VString refName) = (bs !! (fromIntegral $ w - 1))
   (Just (_,ref)) <- findEnv refName
   return ref
 
@@ -204,7 +204,7 @@ astore = do
     (VDataRef ref) <- unary' -- Make sure to use unary' because unary dereferences things
     liftIO (writeIORef ref val)
 
-newArray' :: String -> Int -> [Value]
+newArray' :: String -> Integer -> [Value]
 newArray' name 0 = []
 newArray' name size = newArray' name (size - 1) ++ [VString $ "#" ++ name ++ show size]
 
@@ -253,7 +253,7 @@ store = do
 
 resolveStringType str =
     case dropWhile isDigit str of
-        "" -> VIntegral (read str :: Int)
+        "" -> VIntegral (read str :: Integer)
         ('.':xs) -> case dropWhile isDigit xs of
             "" -> VFloating (read str :: Double)
             _ -> VString str
@@ -326,7 +326,7 @@ getStatement = do
 
 getSpaces = do
   (VIntegral num) <- unary
-  return $ VString $ replicate num ' '
+  return $ VString $ replicate (fromIntegral $ num) ' '
 
 getFloor = do
   x <- unary
@@ -368,7 +368,7 @@ setLineNum = do
 setListLineNum = do
   (VIntegral line, VIntegerList list) <- binary
   (program,env,rest,stack,callstack) <- get
-  let newRest = newProgram program (list !! (line - 1)) False
+  let newRest = newProgram program (list !! (fromIntegral $ line - 1)) False
   put(program,env,newRest,stack,callstack)
   
 getOr = do

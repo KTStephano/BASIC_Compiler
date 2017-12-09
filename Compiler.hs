@@ -19,7 +19,7 @@ import Data.IORef
 --import Control.Monad.State
 import Control.Monad.Trans.State
 
-data Sexpr = Symbol String | Number Int | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
+data Sexpr = Symbol String | Number Integer | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
 car (Cons a b) = a
 cdr (Cons a b) = b
@@ -38,15 +38,15 @@ showCdr (Cons x v@(Cons y z)) = " " ++ show x ++ showCdr v
 showCdr (Cons x y) = " " ++ show x ++ " . " ++ show y
 showCdr x = " . " ++ show x
 
-data Bytecode = End {line :: Int} | Push {line :: Int, arg :: Value} | Print {line :: Int} | PrintBang {line :: Int} | 
-                Add {line :: Int} | Mult {line :: Int} | Sub {line :: Int} | Div {line :: Int} | Pow {line :: Int} |
-                Load {line :: Int} | Store {line :: Int} | Input {line :: Int} | Equal {line :: Int} | 
-                NotEqual {line :: Int} | Greater {line :: Int} | GEqual {line :: Int} | Less {line :: Int} | 
-                LEqual {line :: Int} | IfThen {line :: Int} | Goto {line :: Int} | NextLine {line :: Int} | 
-                PushCallstack {line :: Int} | PopCallstack {line :: Int} | Spaces {line :: Int} | CastInt {line :: Int} |
-                Rand {line :: Int} | Log {line :: Int} | Abs {line :: Int} | And {line :: Int} | Or {line :: Int} |
-                ALoad {line :: Int} | ALoad2D {line :: Int} | NewArray {line :: Int} | NewArray2D {line :: Int} |
-                AStore {line :: Int} | OnGoto {line :: Int} | OnGosub {line :: Int} deriving (Eq)
+data Bytecode = End {line :: Integer} | Push {line :: Integer, arg :: Value} | Print {line :: Integer} | PrintBang {line :: Integer} | 
+                Add {line :: Integer} | Mult {line :: Integer} | Sub {line :: Integer} | Div {line :: Integer} | Pow {line :: Integer} |
+                Load {line :: Integer} | Store {line :: Integer} | Input {line :: Integer} | Equal {line :: Integer} | 
+                NotEqual {line :: Integer} | Greater {line :: Integer} | GEqual {line :: Integer} | Less {line :: Integer} | 
+                LEqual {line :: Integer} | IfThen {line :: Integer} | Goto {line :: Integer} | NextLine {line :: Integer} | 
+                PushCallstack {line :: Integer} | PopCallstack {line :: Integer} | Spaces {line :: Integer} | CastInt {line :: Integer} |
+                Rand {line :: Integer} | Log {line :: Integer} | Abs {line :: Integer} | And {line :: Integer} | Or {line :: Integer} |
+                ALoad {line :: Integer} | ALoad2D {line :: Integer} | NewArray {line :: Integer} | NewArray2D {line :: Integer} |
+                AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -87,8 +87,8 @@ instance Show Bytecode where
     show (OnGoto l) = "ongoto"
     show (OnGosub l) = "ongosub"
 
-data Value = VIntegral Int | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
-             VBool Bool | VStatement [Bytecode] | VIntegerList [Int] | Null | VPair (Value, Value) |
+data Value = VIntegral Integer | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
+             VBool Bool | VStatement [Bytecode] | VIntegerList [Integer] | Null | VPair (Value, Value) |
              VDataRef (IORef Value) | VList [Value]
 
 instance Eq Value where
@@ -191,11 +191,11 @@ cdigit = do
 
 integernum = (do
     r <- many1 cdigit
-    return (read r :: Int)) +++
+    return (read r :: Integer)) +++
     (do
         s <- char '-'
         r <- many1 cdigit
-        return (read ([s] ++ r) :: Int))
+        return (read ([s] ++ r) :: Integer))
 
 number = (do
     r <- many1 cdigit
@@ -287,11 +287,11 @@ printBytecode (x:xs) = do
     putStrLn (show x)
     printBytecode xs
 
-data Basic = String' String | Integer' Int | Floating' Double | StatementList [Basic] |
-             Line Int Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
+data Basic = String' String | Integer' Integer | Floating' Double | StatementList [Basic] |
+             Line Integer Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
              Constant Basic | Statement {getName :: String, body :: Basic} | 
              Expression String Basic | ExpressionList [Basic] | 
-             Array' String Int Basic | IntegerList [Basic] | None deriving (Eq)
+             Array' String Integer Basic | IntegerList [Basic] | None deriving (Eq)
 
 -- This helps us implement (super simple) compile-time type checking
 data Type = TVariable {typeid :: String} | TArray {typeid :: String} deriving (Show, Eq)
@@ -562,7 +562,7 @@ array' :: ParseTree Basic
 array' = do
     (Variable (String' s)) <- iD
     e@(ExpressionList es) <- nesting expressionList
-    return $ Array' s (length es) e
+    return $ Array' s (toInteger $ length es) e
 
 function = 
     do 
@@ -609,7 +609,7 @@ translateSexpr :: Sexpr -> [Basic]
 translateSexpr s = let (result, env) = translateSexpr' s [] in
     result
 
-renumber :: [Basic] -> Int -> Int -> [(Int, Int)] -> ([Basic], [(Int, Int)])
+renumber :: [Basic] -> Integer -> Integer -> [(Integer, Integer)] -> ([Basic], [(Integer, Integer)])
 renumber [] _ _ mapping = ([], mapping)
 renumber (None:ls) line newline mapping = renumber ls line newline mapping
 renumber basic@((Line l b):ls) line newline mapping = if l /= line then renumber basic l (newline + 1) mapping
@@ -634,7 +634,7 @@ generateSimpleArrayPush line (Array' s i b) mapping =
     if (i == 1) then [Push line (VString s)] ++ evalExpression line b mapping
     else [Push line (VString s)] ++ evalExpression line b mapping
 
-renumberLine :: Int -> [(Int, Int)] -> Int
+renumberLine :: Integer -> [(Integer, Integer)] -> Integer
 renumberLine line ((orig, new):ls) = if line == orig then new else renumberLine line ls
 
 evalExpressionList line (ExpressionList []) mapping = []
@@ -725,13 +725,13 @@ evalStatement line e@(ExpressionList _) mapping = evalExpressionList line e mapp
 evalStatement line e@(Expression _ _) mapping = evalExpression line e mapping
 evalStatement line _ mapping = []
 
---evalStatement :: Basic -> [(Int, Int)] -> [Bytecode]
+--evalStatement :: Basic -> [(Integer, Integer)] -> [Bytecode]
 evalStatementList _ None mapping = []
 evalStatementList _ (StatementList []) mapping = []
 evalStatementList line (StatementList (s:ss)) mapping = evalStatement line s mapping ++ 
                                                         evalStatementList line (StatementList ss) mapping
 
-compile' :: [Basic] -> [(Int, Int)] -> [Bytecode]
+compile' :: [Basic] -> [(Integer, Integer)] -> [Bytecode]
 compile' [] mapping = []
 compile' (b@(Line l s):bs) mapping = evalStatementList l s mapping ++ compile' bs mapping
 
