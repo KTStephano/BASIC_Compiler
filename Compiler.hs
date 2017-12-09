@@ -18,6 +18,10 @@ import System.IO.Unsafe
 import Data.IORef
 --import Control.Monad.State
 import Control.Monad.Trans.State
+import System.Environment
+import System.IO
+
+hangman = "(define hangman '( (1000 print tab (32) \"HANGMAN\" ) (1010 print tab (15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (1020 print ) (1030 print ) (1040 print ) (1050 dim p$ (12 12) ) (1060 dim l$ (20) ) (1070 dim d$ (20) ) (1080 dim n$ (26) ) (1090 dim u (50) ) (1100 let c = 10 ) (1110 let n = 50 ) (1120 for i1 = 1 to 20 ) (1130 let d$ (i1) = \"-\" ) (1140 next i1 ) (1150 let m = 0 ) (1160 for i2 = 1 to 26 ) (1170 let n$ (i2) = \"\" ) (1180 next i2 ) (1190 for i3 = 1 to 12 ) (1200 for j1 = 1 to 12 ) (1210 let p$ (i3 j1) = \" \" ) (1220 next j1 ) (1230 next i3 ) (1240 for i4 = 1 to 12 ) (1250 let p$ (i4 1) = \"X\" ) (1260 next i4 ) (1270 for i5 = 1 to 7 ) (1280 let p$ (1 i5) = \"X\" ) (1290 next i5 ) (1300 let p$ (2 7) = \"X\" ) (1310 if (c < n) then 1340 ) (1320 print \"YOU DID ALL THE WORDS!!\" ) (1330 end ) (1340 let q = (int ((n * rnd (1))) + 1) ) (1350 if (u (q) = 1) then 1340 ) (1360 let u (q) = 1 ) (1370 let c = (c + 1) ) (1380 restore ) (1390 let t1 = 0 ) (1400 for i6 = 1 to q ) (1410 read a$ ) (1420 next i6 ) (1430 let l = len (a$) ) (1440 for i7 = 1 to len (a$) ) (1450 let l$ (i7) = mid$ (a$ i7 1) ) (1460 next i7 ) (1470 print \"HERE ARE THE LETTERS YOU USED:\" ) (1480 for i8 = 1 to 26 ) (1490 print! n$ (i8) ) (1500 if (n$ ((i8 + 1)) = \"\") then 1530 ) (1510 print! \",\" ) (1520 next i8 ) (1530 print ) (1540 print ) (1550 for i9 = 1 to l ) (1560 print! d$ (i9) ) (1570 next i9 ) (1580 print ) (1590 print ) (1600 input \"WHAT IS YOUR GUESS\" g$ ) (1610 let r = 0 ) (1620 for i10 = 1 to 26 ) (1630 if (n$ (i10) = \"\") then 1700 ) (1640 if (g$ <> n$ (i10)) then 1670 ) (1650 print \"YOU GUESSED THAT LETTER BEFORE!\" ) (1660 goto 1470 ) (1670 next i10 ) (1680 print \"PROGRAM ERROR. RUN AGAIN.\" ) (1690 end ) (1700 let n$ (i10) = g$ ) (1710 let t1 = (t1 + 1) ) (1720 for i11 = 1 to l ) (1730 if (l$ (i11) = g$) then 1770 ) (1740 next i11 ) (1750 if (r = 0) then 1800 ) (1760 goto 1820 ) (1770 let d$ (i11) = g$ ) (1780 let r = (r + 1) ) (1790 goto 1740 ) (1800 let m = (m + 1) ) (1810 goto 2050 ) (1820 for i12 = 1 to l ) (1830 if (d$ (i12) = \"-\") then 1860 ) (1840 next i12 ) (1850 goto 2030 ) (1860 print ) (1870 for i13 = 1 to l ) (1880 print! d$ (i13) ) (1890 next i13 ) (1900 print ) (1910 print ) (1920 input \"WHAT IS YOUR GUESS FOR THE WORD\" b$ ) (1930 if (a$ = b$) then 1970 ) (1940 print \"WRONG. TRY ANOTHER LETTER.\" ) (1950 print ) (1960 goto 1470 ) (1970 print \"RIGHT!! IT TOOK YOU \" t1 \" GUESSES!\" ) (1980 input \"WANT ANOTHER WORD\" w$ ) (1990 if (w$ = \"YES\") then 1120 ) (2000 print ) (2010 print \"IT'S BEEN FUN! BYE FOR NOW.\" ) (2020 goto 2920 ) (2030 print \"YOU FOUND THE WORD!\" ) (2040 goto 1980 ) (2050 print ) (2060 print ) (2070 print \"SORRY, THAT LETTER ISN'T IN THE WORD.\" ) (2080 on m goto 2090 2110 2130 2150 2170 2190 2210 2230 2250 2270 ) (2090 print \"FIRST, WE DRAW A HEAD\" ) (2100 goto 2280 ) (2110 print \"NOW WE DRAW A BODY.\" ) (2120 goto 2280 ) (2130 print \"NEXT WE DRAW AN ARM.\" ) (2140 goto 2280 ) (2150 print \"THIS TIME IT'S THE OTHER ARM.\" ) (2160 goto 2280 ) (2170 print \"NOW, LET'S DRAW THE RIGHT LEG.\" ) (2180 goto 2280 ) (2190 print \"THIS TIME WE DRAW THE LEFT LEG.\" ) (2200 goto 2280 ) (2210 print \"NOW WE PUT UP A HAND.\" ) (2220 goto 2280 ) (2230 print \"NEXT THE OTHER HAND.\" ) (2240 goto 2280 ) (2250 print \"NOW WE DRAW ONE FOOT\" ) (2260 goto 2280 ) (2270 print \"HERE'S THE OTHER FOOT -- YOU'RE HUNG!!\" ) (2280 on m goto 2290 2400 2440 2480 2530 2560 2590 2610 2630 2660 ) (2290 let p$ (3 6) = \"-\" ) (2300 let p$ (3 7) = \"-\" ) (2310 let p$ (3 8) = \"-\" ) (2320 let p$ (4 5) = \"(\" ) (2330 let p$ (4 6) = \".\" ) (2340 let p$ (4 8) = \".\" ) (2350 let p$ (4 9) = \")\" ) (2360 let p$ (5 6) = \"-\" ) (2370 let p$ (5 7) = \"-\" ) (2380 let p$ (5 8) = \"-\" ) (2390 goto 2680 ) (2400 for i14 = 6 to 9 ) (2410 let p$ (i14 7) = \"X\" ) (2420 next i14 ) (2430 goto 2680 ) (2440 for i15 = 4 to 7 ) (2450 let p$ (i15 (i15 - 1)) = \"\\\" ) (2460 next i15 ) (2470 goto 2680 ) (2480 let p$ (4 11) = \"/\" ) (2490 let p$ (5 10) = \"/\" ) (2500 let p$ (6 9) = \"/\" ) (2510 let p$ (7 8) = \"/\" ) (2520 goto 2680 ) (2530 let p$ (10 6) = \"/\" ) (2540 let p$ (11 5) = \"/\" ) (2550 goto 2680 ) (2560 let p$ (10 8) = \"\\\" ) (2570 let p$ (11 9) = \"\\\" ) (2580 goto 2680 ) (2590 let p$ (3 11) = \"\\\" ) (2600 goto 2680 ) (2610 let p$ (3 3) = \"/\" ) (2620 goto 2680 ) (2630 let p$ (12 10) = \"\\\" ) (2640 let p$ (12 11) = \"-\" ) (2650 goto 2680 ) (2660 let p$ (12 3) = \"-\" ) (2670 let p$ (12 4) = \"/\" ) (2680 for i16 = 1 to 12 ) (2690 for j2 = 1 to 12 ) (2700 print! p$ (i16 j2) ) (2710 next j2 ) (2720 print ) (2730 next i16 ) (2740 print ) (2750 print ) (2760 if (m <> 10) then 1470 ) (2770 print \"SORRY, YOU LOSE. THE WORD WAS \" a$ ) (2780 print! \"YOU MISSED THAT ONE. DO YOU \" ) (2790 goto 1980 ) (2800 input \"TYPE YES OR NO\" y$ ) (2810 if (left$ (y$ 1) = \"Y\") then 1120 ) (2820 data \"GUM\" \"SIN\" \"FOR\" \"CRY\" \"LUG\" \"BYE\" \"FLY\" ) (2830 data \"UGLY\" \"EACH\" \"FROM\" \"WORK\" \"TALK\" \"WITH\" \"SELF\" ) (2840 data \"PIZZA\" \"THING\" \"FEIGN\" \"FIEND\" \"ELBOW\" \"FAULT\" \"DIRTY\" ) (2850 data \"BUDGET\" \"SPIRIT\" \"QUAINT\" \"MAIDEN\" \"ESCORT\" \"PICKAX\" ) (2860 data \"EXAMPLE\" \"TENSION\" \"QUININE\" \"KIDNEY\" \"REPLICA\" \"SLEEPER\" ) (2870 data \"TRIANGLE\" \"KANGAROO\" \"MAHOGANY\" \"SERGEANT\" \"SEQUENCE\" ) (2880 data \"MOUSTACHE\" \"DANGEROUS\" \"SCIENTIST\" \"DIFFERENT\" \"QUIESCENT\" ) (2890 data \"MAGISTRATE\" \"ERRONEOUSLY\" \"LOUDSPEAKER\" \"PHYTOTOXIC\" ) (2900 data \"MATRIMONIAL\" \"PARASYMPATHOMIMETIC\" \"THIGMOTROPISM\" ) (2910 print \"BYE NOW\" ) (2920 end )))"
 
 data Sexpr = Symbol String | Number Integer | Floating Double | Nil | Cons Sexpr Sexpr deriving (Eq)
 
@@ -46,7 +50,7 @@ data Bytecode = End {line :: Integer} | Push {line :: Integer, arg :: Value} | P
                 PushCallstack {line :: Integer} | PopCallstack {line :: Integer} | Spaces {line :: Integer} | CastInt {line :: Integer} |
                 Rand {line :: Integer} | Log {line :: Integer} | Abs {line :: Integer} | And {line :: Integer} | Or {line :: Integer} |
                 ALoad {line :: Integer} | ALoad2D {line :: Integer} | NewArray {line :: Integer} | NewArray2D {line :: Integer} |
-                AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} deriving (Eq)
+                AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} | Length {line :: Integer} | Substring {line :: Integer} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -86,6 +90,8 @@ instance Show Bytecode where
     show (AStore l) = "astore"
     show (OnGoto l) = "ongoto"
     show (OnGosub l) = "ongosub"
+    show (Length l) = "length"
+    show (Substring l) = "substring"
 
 data Value = VIntegral Integer | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | VIntegerList [Integer] | Null | VPair (Value, Value) |
@@ -300,14 +306,14 @@ instance Show Basic where
     show (String' s) = s
     show (Integer' i) = show i
     show (Floating' f) = show f
-    show (StatementList xs) = show xs
+    show (StatementList xs) = "{StatementList " ++ show xs ++ "}"
     show (Line l b) = show l ++ ": " ++ show b
     show (Variable b) = "Var " ++ show b
     show (Function s b) = "Function " ++ s ++ " -> " ++ show b
     show (Array' n i b) = "Array -> " ++ n ++ " " ++ show i ++ " " ++ show b
     show (Statement s b) = "{Statement " ++ s ++ " -> " ++ show b ++ "}"
     show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
-    show (ExpressionList xs) = show xs
+    show (ExpressionList xs) = "{ExpressionList " ++ show xs ++ "}"
     show (Constant c) = "Const " ++ show c
     show (IntegerList is) = "{IntegerList -> " ++ show is ++ "}"
     show None = "None"
@@ -327,16 +333,16 @@ symb' cs = do {i <- item'; if cs == i then return i else mzero}
 
 -- Functions for converting a Sexpr (parse tree) into Basic
 
-lookupEnv' s@(Symbol s') [] = Nothing
-lookupEnv' s@(Symbol s') (t:ts) = if typeid t == s' then Just t else lookupEnv' s ts
+lookupEnv'' s@(Symbol s') [] = Nothing
+lookupEnv'' s@(Symbol s') (t:ts) = if typeid t == s' then Just t else lookupEnv'' s ts
 
-lookupEnv s@(Symbol _) = StateT $ \(s', t) ->
-    case (lookupEnv' s t) of
+lookupEnv' s@(Symbol _) = StateT $ \(s', t) ->
+    case (lookupEnv'' s t) of
         Nothing -> Nothing
         Just t' -> Just (t', (s', t))
 
 modifyEnv tid v = StateT $ \(s, t) ->
-    let entry = runStateT (lookupEnv tid) (s, t) in
+    let entry = runStateT (lookupEnv' tid) (s, t) in
         case entry of
             Nothing -> Just (v, (s, [v] ++ t))
             Just (t', _) -> Just (v, (s, [v] ++ (filter (\x -> typeid x /= typeid v) t)))
@@ -379,7 +385,7 @@ statements =
         return $ StatementList [s])
 
 statement :: ParseTree Basic
-statement = dim `mplus` end `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` on' `mplus` print' `mplus` return' `mplus` setVar
+statement = dim `mplus` endRestore `mplus` for `mplus` goto `mplus` if' `mplus` input `mplus` let' `mplus` next `mplus` on' `mplus` print' `mplus` return' `mplus` setVar `mplus` data' `mplus` read'
 
 rem :: ParseTree Basic
 rem = do
@@ -393,9 +399,9 @@ dim = do
     modifyEnv (Symbol s) (TArray s)
     return $ Statement d a
 
-end :: ParseTree Basic
-end = do
-    (Symbol e) <- string' "end"
+endRestore :: ParseTree Basic
+endRestore = do
+    (Symbol e) <- (string' "end" `mplus` string' "restore")
     return $ Statement e None
 
 for :: ParseTree Basic
@@ -452,6 +458,18 @@ next = do
     (Symbol n) <- string' "next"
     i <- iD
     return $ Statement n i
+
+read' :: ParseTree Basic
+read' = do
+    (Symbol r) <- string' "read"
+    i <- variable
+    return $ Statement r i
+
+data' :: ParseTree Basic
+data' = do
+    (Symbol d) <- string' "data"
+    es <- expressionList
+    return $ Statement d es
 
 on' :: ParseTree Basic
 on' =
@@ -549,7 +567,7 @@ variable =
     (do
         st <- get
         a@(Array' s i e) <- array'
-        t <- lookupEnv (Symbol s) -- if this fails we don't continue
+        t <- lookupEnv' (Symbol s) -- if this fails we don't continue
         case t of
             (TArray _) -> return a
             _ -> do {put st; mzero}) `mplus`
@@ -567,7 +585,7 @@ array' = do
 function = 
     do 
         (Symbol i) <- item'
-        if (i `elem` ["int", "rnd", "log", "abs", "sqrt"]) then do
+        if (i `elem` ["int", "rnd", "log", "abs", "sqrt", "len", "mid$"]) then do
             e <- nesting expression
             return $ Function i e
             else mzero
@@ -608,6 +626,32 @@ translateSexpr (Cons s s') = translateSexpr s ++ translateSexpr s'
 translateSexpr :: Sexpr -> [Basic]
 translateSexpr s = let (result, env) = translateSexpr' s [] in
     result
+
+combineDataStatements :: [Basic] -> Basic
+combineDataStatements data' = 
+    let helper [] acc = acc
+        helper ((Line i (StatementList s)):lines) acc = let result = helper s acc in helper lines result
+        helper ((Statement _ (ExpressionList es)):d) 
+               (Statement _ (ExpressionList stream)) = helper d (Statement "data" (ExpressionList $ stream ++ es))
+    in Line 0 $ StatementList $ [helper data' (Statement "data" (ExpressionList []))]
+
+reorderBasic' :: [Basic] -> [Basic] -> [Basic] -> ([Basic], [Basic])
+reorderBasic' [] data' acc = (data', acc)
+reorderBasic' (d@(Statement "data" (ExpressionList es)):basic) data' acc = 
+    reorderBasic' basic (data' ++ [d]) acc
+reorderBasic' (b:basic) data' acc = reorderBasic' basic data' (acc ++ [b])
+
+--reorderBasic'' :: [Basic] -> [Basic]
+reorderBasic'' [] = ([], [])
+reorderBasic'' (None:rest) = reorderBasic'' rest
+reorderBasic'' ((Line i (StatementList s)):rest) = let (data', rest') = reorderBasic' s [] []
+                                                       (data'', rest'') = reorderBasic'' rest
+                                                   in ((if data' == [] then [] else [Line 0 $ StatementList data']) ++ data'',
+                                                       (if rest' == [] then [] else [Line i $ StatementList rest']) ++ rest'')
+
+reorderBasic basic = let (data', rest) = reorderBasic'' basic
+                     in (if data' == [] then [] else [combineDataStatements data']) ++ rest
+                     
 
 renumber :: [Basic] -> Integer -> Integer -> [(Integer, Integer)] -> ([Basic], [(Integer, Integer)])
 renumber [] _ _ mapping = ([], mapping)
@@ -660,6 +704,8 @@ evalExpression line (Function "int" rest) mapping = evalExpression line rest map
 evalExpression line (Function "log" rest) mapping = evalExpression line rest mapping ++ [Log line]
 evalExpression line (Function "rnd" rest) mapping = evalExpression line rest mapping ++ [Rand line]
 evalExpression line (Function "abs" rest) mapping = evalExpression line rest mapping ++ [Abs line]
+evalExpression line (Function "len" rest) mapping = evalExpression line rest mapping ++ [Length line]
+evalExpression line (Function "mid$" rest) mapping = evalExpression line rest mapping ++ [Substring line] ++ [Length line]
 evalExpression line (Function "sqrt" rest) mapping = 
     evalExpression line rest mapping ++ generatePush line (Floating' 0.5) mapping ++ [Pow line]
 evalExpression line e@(ExpressionList xs) mapping = evalExpressionList line e mapping
@@ -685,6 +731,25 @@ evalOnGoStatement line (ExpressionList (e:(IntegerList is):(Statement g _):rest)
         (if g == "goto" then [OnGoto line]
         else [Push line (VIntegral (line + 1)), PushCallstack line, OnGoto line])
 
+evalDataStatement line index (ExpressionList []) mapping = []
+evalDataStatement line index (ExpressionList (e:es)) mapping =
+    generatePush line (String' "$stream") mapping ++ generatePush line (Integer' index) mapping ++ [ALoad line] ++ generatePush line e mapping ++ [AStore line] ++ -- Store the current element at index in $stream global array
+    evalDataStatement line (index + 1) (ExpressionList es) mapping
+
+increment line (Variable v@_) mapping = 
+    generatePush line v mapping ++ generatePush line v mapping ++ [Load line] ++ generatePush line (Integer' 1) mapping ++ [Add line] ++ [Store line]
+increment line v@(String' _) mapping = 
+    generatePush line v mapping ++ generatePush line v mapping ++ [Load line] ++ generatePush line (Integer' 1) mapping ++ [Add line] ++ [Store line]
+increment line v@(Array' _ _ _) mapping = 
+    generatePush line v mapping ++ generatePush line v mapping ++ generatePush line (Integer' 1) mapping ++ [Add line] ++ [AStore line]
+
+evalReadStatement line (Variable v@_) mapping =
+    generatePush line v mapping ++ generatePush line (String' "$stream") mapping ++ generatePush line (String' "$streamidx") mapping ++ [Load line] ++ [ALoad line] ++ [Store line] ++ -- Store reference to current position in stream in variable v
+    increment line (String' "$streamidx") mapping -- Increment $streamidx
+evalReadStatement line a@(Array' _ _ _) mapping = -- Assume array
+    generatePush line a mapping ++ generatePush line (String' "$stream") mapping ++ generatePush line (String' "$streamidx") mapping ++ [Load line] ++ [ALoad line] ++ [AStore line] ++ -- Store reference to current position in stream in variable v
+    increment line (String' "$streamidx") mapping -- Increment $streamidx
+
 -- evalStatement deals with things like if, for, goto, etc.
 evalStatement line None mapping = []
 evalStatement line (Statement "end" _) mapping = [End line]
@@ -697,6 +762,12 @@ evalStatement line (Statement "let" e) mapping = evalLetStatement line e mapping
 evalStatement line (Statement "for" (ExpressionList ((Variable v):es))) mapping = generatePush line v mapping ++ evalExpressionList line (ExpressionList es) mapping
 evalStatement line (Statement "tab" e) mapping = evalExpression line e mapping ++ [Spaces line]
 evalStatement line (Statement "on" e) mapping = evalOnGoStatement line e mapping
+evalStatement line (Statement "read" e) mapping = evalReadStatement line e mapping
+evalStatement line (Statement "restore" _) mapping = generatePush line (String' "$streamidx") mapping ++ generatePush line (Integer' 1) mapping ++ [Store line] -- Reset $streamidx to 1
+evalStatement line (Statement "data" e@(ExpressionList es)) mapping = 
+    generatePush line (String' "$streamidx") mapping ++ generatePush line (Integer' 1) mapping ++ [Store line] ++ -- Generate the variable to store the current array index in
+    generatePush line (String' "$stream") mapping ++ generatePush line (Integer' $ toInteger $ length es) mapping ++ [NewArray line] ++ -- Generate a new array to represent the stream - we are guaranteed to only have one per program due to preprocessing
+    evalDataStatement line 1 e mapping
 evalStatement line (Statement "dim" a@(Array' s i b)) mapping = 
     generateSimpleArrayPush line a mapping ++ [if i == 1 then NewArray line else NewArray2D line]
 evalStatement line (Statement "to" (ExpressionList ((Variable (String' v)):e:es))) mapping =
@@ -709,7 +780,7 @@ evalStatement line (Statement "next" (Variable var@(String' v))) mapping =
     [Push line $ VStatement $ [ -- Creating code which can jump to the top of the loop if necessary
         Push line (VString ("$" ++ v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps
         --Push line (VString (v ++ "jmp")), PopCallstack line, Store line, -- Stores the jump location in variable (v ++ jmp)
-        --Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the next iteration to see it again)
+        --Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the nextReaditeration to see it again)
         --Push line (VString (v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps to it
         ]] ++ [IfThen line] 
         -- ++ [Push line (VString (v ++ "jmp"))] ++ [PopCallstack line] ++ [Store line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
@@ -738,5 +809,5 @@ compile' (b@(Line l s):bs) mapping = evalStatementList l s mapping ++ compile' b
 compile :: Sexpr -> [Bytecode]
 compile s = case s of
     (Symbol s) -> []
-    _ -> let (basic, mapping) = renumber (translateSexpr s) 0 (-1) [] in
+    _ -> let (basic, mapping) = renumber (reorderBasic (translateSexpr s)) 0 0 [] in
         compile' basic mapping
