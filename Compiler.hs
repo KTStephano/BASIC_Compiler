@@ -113,7 +113,7 @@ instance Ord Value where
     (VList ls) <= (VList ls') = ls <= ls'
 
 instance Fractional Value where
-    (VIntegral i) / (VIntegral ii) = VIntegral $ round $ (fromIntegral i) / (fromIntegral ii)
+    (VIntegral i) / (VIntegral ii) = VFloating $ (fromIntegral i) / (fromIntegral ii)
     (VIntegral i) / (VFloating f) = VFloating $ (fromIntegral i) / f
     (VFloating f) / (VIntegral i) = VFloating $ f / (fromIntegral i)
     (VFloating f) / (VFloating ff) = VFloating $ f / ff
