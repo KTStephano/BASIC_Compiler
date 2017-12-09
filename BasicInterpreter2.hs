@@ -214,7 +214,7 @@ newArray = do
     (VString var, VIntegral size) <- binary
     let array' = newArray' var size
     forM_ array' $ \(VString s) -> do
-        updateEnv s Null
+        updateEnv s (VIntegral 0)
         return (VString s)
     updateEnv var (VList array')
 
@@ -239,7 +239,7 @@ newArray2D = do
 -}    
 innerArray var array = do
   forM_ array $ \(VString s) -> do
-    updateEnv s Null
+    updateEnv s (VIntegral 0)
     return (VString s)
   --updateEnv var (VList array)
 
@@ -410,7 +410,6 @@ printStack (x:xs) = do
 
 vm' = do
     bytecode <- nextInstruction
-    liftIO $ print bytecode
     case bytecode of
         End l -> do
             liftIO $ putStr ""
