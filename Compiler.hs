@@ -586,8 +586,12 @@ function =
     do 
         (Symbol i) <- item'
         if (i `elem` ["int", "rnd", "log", "abs", "sqrt", "len", "mid$"]) then do
-            e <- nesting expression
-            return $ Function i e
+            if i == "mid$" then do
+                e <- nesting expressionList
+                return $ Function i e
+            else do
+                e <- nesting expression
+                return $ Function i e
             else mzero
 
 constant = (do {(Number i) <- item'; return $ Constant $ Integer' i}) `mplus`
@@ -705,7 +709,7 @@ evalExpression line (Function "log" rest) mapping = evalExpression line rest map
 evalExpression line (Function "rnd" rest) mapping = evalExpression line rest mapping ++ [Rand line]
 evalExpression line (Function "abs" rest) mapping = evalExpression line rest mapping ++ [Abs line]
 evalExpression line (Function "len" rest) mapping = evalExpression line rest mapping ++ [Length line]
-evalExpression line (Function "mid$" rest) mapping = evalExpression line rest mapping ++ [Substring line] ++ [Length line]
+evalExpression line (Function "mid$" rest) mapping = evalExpression line rest mapping ++ [Substring line]
 evalExpression line (Function "sqrt" rest) mapping = 
     evalExpression line rest mapping ++ generatePush line (Floating' 0.5) mapping ++ [Pow line]
 evalExpression line e@(ExpressionList xs) mapping = evalExpressionList line e mapping
