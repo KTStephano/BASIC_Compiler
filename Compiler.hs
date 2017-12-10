@@ -122,7 +122,7 @@ instance Eq Value where
     (VFloating f) == (VFloating ff) = f == ff
     (VBool b) == (VBool bb) = b == bb
     (VList ls) == (VList ls') = ls == ls'
-    (VString s) == (VString ss) = s == ss
+    (VString s) == (VString ss) = map toLower s == map toLower ss
     Null == Null = True
     Null == _ = False
     _ == Null = False
