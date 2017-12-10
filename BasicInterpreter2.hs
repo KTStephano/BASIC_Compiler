@@ -36,6 +36,9 @@ ongoCheck = "(define test '((100 on 2 goto 110 120 130 140)" ++
                            "(140 print x)" ++
                            "(150 end)))"
 
+
+hangman = "(define hangman '( (1000 print tab (32) \"HANGMAN\" ) (1010 print tab (15) \"CREATIVE COMPUTING MORRISTOWN, NEW JERSEY\" ) (1020 print ) (1030 print ) (1040 print ) (1050 dim p$ (12 12) ) (1060 dim l$ (20) ) (1070 dim d$ (20) ) (1080 dim n$ (26) ) (1090 dim u (50) ) (1100 let c = 10 ) (1110 let n = 50 ) (1120 for i1 = 1 to 20 ) (1130 let d$ (i1) = \"-\" ) (1140 next i1 ) (1150 let m = 0 ) (1160 for i2 = 1 to 26 ) (1170 let n$ (i2) = \"\" ) (1180 next i2 ) (1190 for i3 = 1 to 12 ) (1200 for j1 = 1 to 12 ) (1210 let p$ (i3 j1) = \" \" ) (1220 next j1 ) (1230 next i3 ) (1240 for i4 = 1 to 12 ) (1250 let p$ (i4 1) = \"X\" ) (1260 next i4 ) (1270 for i5 = 1 to 7 ) (1280 let p$ (1 i5) = \"X\" ) (1290 next i5 ) (1300 let p$ (2 7) = \"X\" ) (1310 if (c < n) then 1340 ) (1320 print \"YOU DID ALL THE WORDS!!\" ) (1330 end ) (1340 let q = (int ((n * rnd (1))) + 1) ) (1350 if (u (q) = 1) then 1340 ) (1360 let u (q) = 1 ) (1370 let c = (c + 1) ) (1380 restore ) (1390 let t1 = 0 ) (1400 for i6 = 1 to q ) (1410 read a$ ) (1420 next i6 ) (1430 let l = len (a$) ) (1440 for i7 = 1 to len (a$) ) (1450 let l$ (i7) = mid$ (a$ i7 1) ) (1460 next i7 ) (1470 print \"HERE ARE THE LETTERS YOU USED:\" ) (1480 for i8 = 1 to 26 ) (1490 print! n$ (i8) ) (1500 if (n$ ((i8 + 1)) = \"\") then 1530 ) (1510 print! \",\" ) (1520 next i8 ) (1530 print ) (1540 print ) (1550 for i9 = 1 to l ) (1560 print! d$ (i9) ) (1570 next i9 ) (1580 print ) (1590 print ) (1600 input \"WHAT IS YOUR GUESS\" g$ ) (1610 let r = 0 ) (1620 for i10 = 1 to 26 ) (1630 if (n$ (i10) = \"\") then 1700 ) (1640 if (g$ <> n$ (i10)) then 1670 ) (1650 print \"YOU GUESSED THAT LETTER BEFORE!\" ) (1660 goto 1470 ) (1670 next i10 ) (1680 print \"PROGRAM ERROR. RUN AGAIN.\" ) (1690 end ) (1700 let n$ (i10) = g$ ) (1710 let t1 = (t1 + 1) ) (1720 for i11 = 1 to l ) (1730 if (l$ (i11) = g$) then 1770 ) (1740 next i11 ) (1750 if (r = 0) then 1800 ) (1760 goto 1820 ) (1770 let d$ (i11) = g$ ) (1780 let r = (r + 1) ) (1790 goto 1740 ) (1800 let m = (m + 1) ) (1810 goto 2050 ) (1820 for i12 = 1 to l ) (1830 if (d$ (i12) = \"-\") then 1860 ) (1840 next i12 ) (1850 goto 2030 ) (1860 print ) (1870 for i13 = 1 to l ) (1880 print! d$ (i13) ) (1890 next i13 ) (1900 print ) (1910 print ) (1920 input \"WHAT IS YOUR GUESS FOR THE WORD\" b$ ) (1930 if (a$ = b$) then 1970 ) (1940 print \"WRONG. TRY ANOTHER LETTER.\" ) (1950 print ) (1960 goto 1470 ) (1970 print \"RIGHT!! IT TOOK YOU \" t1 \" GUESSES!\" ) (1980 input \"WANT ANOTHER WORD\" w$ ) (1990 if (w$ = \"YES\") then 1120 ) (2000 print ) (2010 print \"IT'S BEEN FUN! BYE FOR NOW.\" ) (2020 goto 2920 ) (2030 print \"YOU FOUND THE WORD!\" ) (2040 goto 1980 ) (2050 print ) (2060 print ) (2070 print \"SORRY, THAT LETTER ISN'T IN THE WORD.\" ) (2080 on m goto 2090 2110 2130 2150 2170 2190 2210 2230 2250 2270 ) (2090 print \"FIRST, WE DRAW A HEAD\" ) (2100 goto 2280 ) (2110 print \"NOW WE DRAW A BODY.\" ) (2120 goto 2280 ) (2130 print \"NEXT WE DRAW AN ARM.\" ) (2140 goto 2280 ) (2150 print \"THIS TIME IT'S THE OTHER ARM.\" ) (2160 goto 2280 ) (2170 print \"NOW, LET'S DRAW THE RIGHT LEG.\" ) (2180 goto 2280 ) (2190 print \"THIS TIME WE DRAW THE LEFT LEG.\" ) (2200 goto 2280 ) (2210 print \"NOW WE PUT UP A HAND.\" ) (2220 goto 2280 ) (2230 print \"NEXT THE OTHER HAND.\" ) (2240 goto 2280 ) (2250 print \"NOW WE DRAW ONE FOOT\" ) (2260 goto 2280 ) (2270 print \"HERE'S THE OTHER FOOT -- YOU'RE HUNG!!\" ) (2280 on m goto 2290 2400 2440 2480 2530 2560 2590 2610 2630 2660 ) (2290 let p$ (3 6) = \"-\" ) (2300 let p$ (3 7) = \"-\" ) (2310 let p$ (3 8) = \"-\" ) (2320 let p$ (4 5) = \"(\" ) (2330 let p$ (4 6) = \".\" ) (2340 let p$ (4 8) = \".\" ) (2350 let p$ (4 9) = \")\" ) (2360 let p$ (5 6) = \"-\" ) (2370 let p$ (5 7) = \"-\" ) (2380 let p$ (5 8) = \"-\" ) (2390 goto 2680 ) (2400 for i14 = 6 to 9 ) (2410 let p$ (i14 7) = \"X\" ) (2420 next i14 ) (2430 goto 2680 ) (2440 for i15 = 4 to 7 ) (2450 let p$ (i15 (i15 - 1)) = \"\\\" ) (2460 next i15 ) (2470 goto 2680 ) (2480 let p$ (4 11) = \"/\" ) (2490 let p$ (5 10) = \"/\" ) (2500 let p$ (6 9) = \"/\" ) (2510 let p$ (7 8) = \"/\" ) (2520 goto 2680 ) (2530 let p$ (10 6) = \"/\" ) (2540 let p$ (11 5) = \"/\" ) (2550 goto 2680 ) (2560 let p$ (10 8) = \"\\\" ) (2570 let p$ (11 9) = \"\\\" ) (2580 goto 2680 ) (2590 let p$ (3 11) = \"\\\" ) (2600 goto 2680 ) (2610 let p$ (3 3) = \"/\" ) (2620 goto 2680 ) (2630 let p$ (12 10) = \"\\\" ) (2640 let p$ (12 11) = \"-\" ) (2650 goto 2680 ) (2660 let p$ (12 3) = \"-\" ) (2670 let p$ (12 4) = \"/\" ) (2680 for i16 = 1 to 12 ) (2690 for j2 = 1 to 12 ) (2700 print! p$ (i16 j2) ) (2710 next j2 ) (2720 print ) (2730 next i16 ) (2740 print ) (2750 print ) (2760 if (m <> 10) then 1470 ) (2770 print \"SORRY, YOU LOSE. THE WORD WAS \" a$ ) (2780 print! \"YOU MISSED THAT ONE. DO YOU \" ) (2790 goto 1980 ) (2800 input \"TYPE YES OR NO\" y$ ) (2810 if (left$ (y$ 1) = \"Y\") then 1120 ) (2820 data \"GUM\" \"SIN\" \"FOR\" \"CRY\" \"LUG\" \"BYE\" \"FLY\" ) (2830 data \"UGLY\" \"EACH\" \"FROM\" \"WORK\" \"TALK\" \"WITH\" \"SELF\" ) (2840 data \"PIZZA\" \"THING\" \"FEIGN\" \"FIEND\" \"ELBOW\" \"FAULT\" \"DIRTY\" ) (2850 data \"BUDGET\" \"SPIRIT\" \"QUAINT\" \"MAIDEN\" \"ESCORT\" \"PICKAX\" ) (2860 data \"EXAMPLE\" \"TENSION\" \"QUININE\" \"KIDNEY\" \"REPLICA\" \"SLEEPER\" ) (2870 data \"TRIANGLE\" \"KANGAROO\" \"MAHOGANY\" \"SERGEANT\" \"SEQUENCE\" ) (2880 data \"MOUSTACHE\" \"DANGEROUS\" \"SCIENTIST\" \"DIFFERENT\" \"QUIESCENT\" ) (2890 data \"MAGISTRATE\" \"ERRONEOUSLY\" \"LOUDSPEAKER\" \"PHYTOTOXIC\" ) (2900 data \"MATRIMONIAL\" \"PARASYMPATHOMIMETIC\" \"THIGMOTROPISM\" ) (2910 print \"BYE NOW\" ) (2920 end )))"
+
 nextInstruction :: VM Bytecode
 nextInstruction = StateT $ \(program, env, rest, stack, callstack) ->
     case rest of
@@ -359,6 +362,66 @@ getRand = do
   rand <- liftIO $ (randomRIO(0,(fromIntegral num)) :: IO Double)
   return $ VFloating  rand ---- $ VFloating $ unsafePerformIO rand
 
+{-
+getSin = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ sin(x)
+    (VFloating x) -> return $ VFloating $ sin(x)
+
+getArcSin = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ asin(x)
+    (VFloating x) -> return $ VFloating $ asin(x)
+
+getCos = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ cos(x)
+    (VFloating x) -> return $ VFloating $ cos(x)
+
+getArcCos = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ acos(x)
+    (VFloating x) -> return $ VFloating $ acos(x)
+
+getTan = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ tan(x)
+    (VFloating x) -> return $ VFloating $ tan(x)
+
+getArctan = do
+  x <- unary
+  case x of
+    (VIntegral x) -> return $ VFloating $ atan(x)
+    (VFloating x) -> return $ VFloating $ atan(x)
+-}
+
+getLength = do
+  (VString str) <- unary
+  return $ VIntegral $ toInteger $ (length str)
+
+--string
+--starting position of the substring
+--length of the substring
+
+--hello
+--  ll
+
+getSubstring = do
+  (VString str, VIntegral start, VIntegral length) <- ternary
+  let x = accSubstring str start length 0 1
+  liftIO $ print x
+  return $ VString $ x
+
+accSubstring [] _ _ _ _ = []
+accSubstring (s:str) start goal cur pos = if pos < start then accSubstring str start goal cur (pos + 1)
+                                          else if cur < goal then s:(accSubstring str start goal (cur + 1) (pos + 1))
+                                          else []
+
 setLineNum = do
   (VIntegral line) <- unary
   (program,env,rest,stack,callstack) <- get
@@ -410,6 +473,7 @@ printStack (x:xs) = do
 
 vm' = do
     bytecode <- nextInstruction
+    --liftIO $ print bytecode
     case bytecode of
         End l -> do
             liftIO $ putStr ""
@@ -479,6 +543,12 @@ vm' = do
         Rand l -> do
             getRand >>= pushStack
             vm'
+        --Sin l -> do
+        --ArcSin l -> do
+        --Cos l -> do
+        --ArcCos l -> do
+        --Tan l -> do
+        --ArcTan l -> do
         Or l -> do
             getOr >>= pushStack
             vm'
@@ -510,8 +580,13 @@ vm' = do
             aload >>= pushStack
             vm'
         ALoad2D l -> do
-            --putStrLn "lol"
             aLoad2D >>= pushStack
+            vm'
+        Length l -> do
+            getLength >>= pushStack
+            vm'
+        Substring l -> do
+            getSubstring >>= pushStack
             vm'
         AStore l -> do
             astore
