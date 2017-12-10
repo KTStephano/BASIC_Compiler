@@ -1,10 +1,19 @@
-{-module Compiler
-(Sexpr(Symbol, Number, Floating, Nil, Cons), 
- Value(VIntegral, VFloating, VString, VSymbol, VBool, VStatement, VIntegerList, VPair, Null), 
- Bytecode(End, Push, Print, PrintBang, Add, Mult, Sub, Div, Load, Store, Input, Equal, NotEqual, Greater, GEqual, Less, LEqual, IfThen, Goto, PushCallstack, PopCallstack, NextLine, Spaces, CastInt, Rand, Log, Abs, Pow, And, Or, ALoad, ALoad2D, AStore, NewArray, NewArray2D, OnGoto, OnGosub), 
- analyze, car, cdr, compile, printBytecode, line) where -}
+{-
+    This is a multi-stage (basic -> bytecode) compiler. The stages are roughly defined as follows:
 
- module Compiler
+        Stage 1) Input is parsed and translated into an S-expression
+        Stage 2) S-expression itself is traversed and translated into a BASIC syntax tree
+        Stage 3) BASIC syntax tree is traversed to find any calls to "data", and these are
+                 then placed at the top and combined into a single statement to execute before anything else
+        Stage 4) BASIC syntax tree is traversed again and renumbered
+        Stage 5) Compiler traverses the BASIC syntax tree one final time and compiles it to Bytecode which
+                 is ready for the virtual machine to interpret
+    
+    These stages are reasonably in order code-wise from what is described above (i.e. first section is type
+    definitions, next section is Sexpr parser, next is Sexpr -> BASIC parser, final section is BASIC -> Bytecode compiler, etc.).
+-}
+
+module Compiler
  (Sexpr(..),
   Value(..),
   Bytecode(..),
@@ -50,7 +59,9 @@ data Bytecode = End {line :: Integer} | Push {line :: Integer, arg :: Value} | P
                 PushCallstack {line :: Integer} | PopCallstack {line :: Integer} | Spaces {line :: Integer} | CastInt {line :: Integer} |
                 Rand {line :: Integer} | Log {line :: Integer} | Abs {line :: Integer} | And {line :: Integer} | Or {line :: Integer} |
                 ALoad {line :: Integer} | ALoad2D {line :: Integer} | NewArray {line :: Integer} | NewArray2D {line :: Integer} |
-                AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} | Length {line :: Integer} | Substring {line :: Integer} deriving (Eq)
+                AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} | Length {line :: Integer} | 
+                Substring {line :: Integer} | Sin {line :: Integer} | Cos {line :: Integer} | Tan {line :: Integer} | 
+                ArcSin {line :: Integer} | ArcCos {line :: Integer} | ArcTan {line :: Integer} | SubstrLast {line :: Integer} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -91,7 +102,14 @@ instance Show Bytecode where
     show (OnGoto l) = "ongoto"
     show (OnGosub l) = "ongosub"
     show (Length l) = "length"
-    show (Substring l) = "substring"
+    show (Substring l) = "substr"
+    show (Sin l) = "sin"
+    show (Cos l) = "cos"
+    show (Tan l) = "tan"
+    show (ArcSin l) = "arcsin"
+    show (ArcCos l) = "arccos"
+    show (ArcTan l) = "arctan"
+    show (SubstrLast l) = "substrlast"
 
 data Value = VIntegral Integer | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | VIntegerList [Integer] | Null | VPair (Value, Value) |
@@ -163,6 +181,33 @@ instance Show Value where
     show (VIntegerList is) = show is
     show (VDataRef v) = "#reference"
     show (VList ls) = show ls
+
+data Basic = String' String | Integer' Integer | Floating' Double | StatementList [Basic] |
+             Line Integer Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
+             Constant Basic | Statement {getName :: String, body :: Basic} | 
+             Expression String Basic | ExpressionList [Basic] | 
+             Array' String Integer Basic | IntegerList [Basic] | None deriving (Eq)
+
+-- This helps us implement (super simple) compile-time type checking
+data Type = TVariable {typeid :: String} | TArray {typeid :: String} deriving (Show, Eq)
+
+instance Show Basic where
+    show (String' s) = s
+    show (Integer' i) = show i
+    show (Floating' f) = show f
+    show (StatementList xs) = "{StatementList " ++ show xs ++ "}"
+    show (Line l b) = show l ++ ": " ++ show b
+    show (Variable b) = "Var " ++ show b
+    show (Function s b) = "Function " ++ s ++ " -> " ++ show b
+    show (Array' n i b) = "Array -> " ++ n ++ " " ++ show i ++ " " ++ show b
+    show (Statement s b) = "{Statement " ++ s ++ " -> " ++ show b ++ "}"
+    show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
+    show (ExpressionList xs) = "{ExpressionList " ++ show xs ++ "}"
+    show (Constant c) = "Const " ++ show c
+    show (IntegerList is) = "{IntegerList -> " ++ show is ++ "}"
+    show None = "None"
+
+type ParseTree a = StateT (Sexpr, [Type]) Maybe a
 
 {-
 
@@ -292,33 +337,6 @@ printBytecode (x:xs) = do
     putStr ": "
     putStrLn (show x)
     printBytecode xs
-
-data Basic = String' String | Integer' Integer | Floating' Double | StatementList [Basic] |
-             Line Integer Basic | Lines [Basic] | Variable Basic | Function String Basic | Value Basic | 
-             Constant Basic | Statement {getName :: String, body :: Basic} | 
-             Expression String Basic | ExpressionList [Basic] | 
-             Array' String Integer Basic | IntegerList [Basic] | None deriving (Eq)
-
--- This helps us implement (super simple) compile-time type checking
-data Type = TVariable {typeid :: String} | TArray {typeid :: String} deriving (Show, Eq)
-
-instance Show Basic where
-    show (String' s) = s
-    show (Integer' i) = show i
-    show (Floating' f) = show f
-    show (StatementList xs) = "{StatementList " ++ show xs ++ "}"
-    show (Line l b) = show l ++ ": " ++ show b
-    show (Variable b) = "Var " ++ show b
-    show (Function s b) = "Function " ++ s ++ " -> " ++ show b
-    show (Array' n i b) = "Array -> " ++ n ++ " " ++ show i ++ " " ++ show b
-    show (Statement s b) = "{Statement " ++ s ++ " -> " ++ show b ++ "}"
-    show (Expression s b) = "{Expression " ++ s ++ " -> " ++ show b ++ "}"
-    show (ExpressionList xs) = "{ExpressionList " ++ show xs ++ "}"
-    show (Constant c) = "Const " ++ show c
-    show (IntegerList is) = "{IntegerList -> " ++ show is ++ "}"
-    show None = "None"
-
-type ParseTree a = StateT (Sexpr, [Type]) Maybe a
 
 item' :: ParseTree Sexpr
 item' = StateT $ \(s, t) -> if s == Nil then Nothing else 
@@ -585,8 +603,9 @@ array' = do
 function = 
     do 
         (Symbol i) <- item'
-        if (i `elem` ["int", "rnd", "log", "abs", "sqrt", "len", "mid$"]) then do
-            if i == "mid$" then do
+        if (i `elem` ["int", "rnd", "log", "abs", "sqrt", "len", "mid$", 
+                      "sin", "cos", "tan", "asin", "acos", "atan", "left$", "right$"]) then do
+            if i == "mid$" || i == "left$" || i == "right$" then do
                 e <- nesting expressionList
                 return $ Function i e
             else do
@@ -616,16 +635,6 @@ translateSexpr' (Cons (Number i) s) env = let result = runStateT statements (s, 
 translateSexpr' (Cons s s') env = let (l, e) = translateSexpr' s env
                                       (r, e') = translateSexpr' s' e
                                   in (l ++ r, e')
-
-{-
-translateSexpr :: Sexpr -> [Basic]
-translateSexpr Nil = []
-translateSexpr (Cons (Number i) s) = let result = runStateT statements s
-                                     in case result of
-                                        (Just (r@(StatementList ss), _)) -> [Line i r]
-                                        Nothing -> []
-translateSexpr (Cons s s') = translateSexpr s ++ translateSexpr s'
--}
 
 translateSexpr :: Sexpr -> [Basic]
 translateSexpr s = let (result, env) = translateSexpr' s [] in
@@ -710,6 +719,16 @@ evalExpression line (Function "rnd" rest) mapping = evalExpression line rest map
 evalExpression line (Function "abs" rest) mapping = evalExpression line rest mapping ++ [Abs line]
 evalExpression line (Function "len" rest) mapping = evalExpression line rest mapping ++ [Length line]
 evalExpression line (Function "mid$" rest) mapping = evalExpression line rest mapping ++ [Substring line]
+evalExpression line (Function "sin" rest) mapping = evalExpression line rest mapping ++ [Sin line]
+evalExpression line (Function "cos" rest) mapping = evalExpression line rest mapping ++ [Cos line]
+evalExpression line (Function "tan" rest) mapping = evalExpression line rest mapping ++ [Tan line]
+evalExpression line (Function "asin" rest) mapping = evalExpression line rest mapping ++ [ArcSin line]
+evalExpression line (Function "acos" rest) mapping = evalExpression line rest mapping ++ [ArcCos line]
+evalExpression line (Function "atan" rest) mapping = evalExpression line rest mapping ++ [ArcTan line]
+evalExpression line (Function "right$" (ExpressionList (e:e':[]))) mapping = 
+    evalExpression line (ExpressionList (e:e':[])) mapping ++ [SubstrLast line]
+evalExpression line (Function "left$" (ExpressionList (e:e':[]))) mapping = 
+    evalExpression line e mapping ++ generatePush line (Integer' 1) mapping ++ evalExpression line e' mapping ++ [Substring line]
 evalExpression line (Function "sqrt" rest) mapping = 
     evalExpression line rest mapping ++ generatePush line (Floating' 0.5) mapping ++ [Pow line]
 evalExpression line e@(ExpressionList xs) mapping = evalExpressionList line e mapping
@@ -783,11 +802,7 @@ evalStatement line (Statement "next" (Variable var@(String' v))) mapping =
     generatePush line var mapping ++ [Load line] ++ [Push line (VString ("$" ++ v ++ "maxrange"))] ++ [Load line] ++ [LEqual line] ++ -- This performs the comparison to see if the loop is done
     [Push line $ VStatement $ [ -- Creating code which can jump to the top of the loop if necessary
         Push line (VString ("$" ++ v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps
-        --Push line (VString (v ++ "jmp")), PopCallstack line, Store line, -- Stores the jump location in variable (v ++ jmp)
-        --Push line (VString (v ++ "jmp")), Load line, PushCallstack line, -- Loads the jump location to the stack and pushes it back to the callstack (for the nextReaditeration to see it again)
-        --Push line (VString (v ++ "jmp")), Load line, Goto line -- Loads the jump location onto the stack and jumps to it
-        ]] ++ [IfThen line] 
-        -- ++ [Push line (VString (v ++ "jmp"))] ++ [PopCallstack line] ++ [Store line] -- IfThen compares the result of checking if the loop is done, and if it isn't it executes the code which restarts the loop at the top
+        ]] ++ [IfThen line]
 evalStatement line (Statement "goto" (Integer' i)) mapping = 
     generatePush line (Integer' $ renumberLine i mapping) mapping ++ [Goto line]
 evalStatement line (Statement "gosub" (Integer' i)) mapping = 
