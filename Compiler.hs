@@ -677,11 +677,14 @@ renumber basic@((Line l b):ls) line newline mapping = if l /= line then renumber
 
 -- Begin the actual compiler
 
+removeQuotes (String' s) = filter (\c -> c /= '"' && c /= '\"') s
+removeQuotes (Variable (String' v)) = removeQuotes (String' v)
+
 generatePush line (Constant c) mapping = generatePush line c mapping
 generatePush line (Integer' i) mapping = [Push line (VIntegral i)]
 generatePush line (Floating' f) mapping = [Push line (VFloating f)]
-generatePush line (String' s) mapping = [Push line (VString s)]
-generatePush line (Variable (String' v)) mapping = [Push line (VString v), Load line]
+generatePush line s'@(String' s) mapping = [Push line (VString $ removeQuotes s')]
+generatePush line (Variable v'@(String' v)) mapping = [Push line (VString $ removeQuotes v'), Load line]
 generatePush line a@(Array' _ i _) mapping =
     if (i == 1) then generateSimpleArrayPush line a mapping ++ [ALoad line]
     else generateSimpleArrayPush line a mapping ++ [ALoad2D line]
