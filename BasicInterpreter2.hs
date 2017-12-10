@@ -362,65 +362,65 @@ getRand = do
   rand <- liftIO $ (randomRIO(0,(fromIntegral num)) :: IO Double)
   return $ VFloating  rand ---- $ VFloating $ unsafePerformIO rand
 
-{-
 getSin = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ sin(x)
+    (VIntegral x) -> return $ VFloating $ sin((fromIntegral x))
     (VFloating x) -> return $ VFloating $ sin(x)
 
 getArcSin = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ asin(x)
+    (VIntegral x) -> return $ VFloating $ asin(fromIntegral x)
     (VFloating x) -> return $ VFloating $ asin(x)
 
 getCos = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ cos(x)
+    (VIntegral x) -> return $ VFloating $ cos(fromIntegral x)
     (VFloating x) -> return $ VFloating $ cos(x)
 
 getArcCos = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ acos(x)
+    (VIntegral x) -> return $ VFloating $ acos(fromIntegral x)
     (VFloating x) -> return $ VFloating $ acos(x)
 
 getTan = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ tan(x)
+    (VIntegral x) -> return $ VFloating $ tan(fromIntegral x)
     (VFloating x) -> return $ VFloating $ tan(x)
 
-getArctan = do
+getArcTan = do
   x <- unary
   case x of
-    (VIntegral x) -> return $ VFloating $ atan(x)
+    (VIntegral x) -> return $ VFloating $ atan(fromIntegral x)
     (VFloating x) -> return $ VFloating $ atan(x)
--}
 
 getLength = do
   (VString str) <- unary
   return $ VIntegral $ toInteger $ (length str)
 
---string
---starting position of the substring
---length of the substring
-
---hello
---  ll
 
 getSubstring = do
   (VString str, VIntegral start, VIntegral length) <- ternary
   let x = accSubstring str start length 0 1
-  liftIO $ print x
+  --liftIO $ print x --This is for cheating in hangman
   return $ VString $ x
 
 accSubstring [] _ _ _ _ = []
 accSubstring (s:str) start goal cur pos = if pos < start then accSubstring str start goal cur (pos + 1)
                                           else if cur < goal then s:(accSubstring str start goal (cur + 1) (pos + 1))
                                           else []
+
+getSubstrLast = do
+  (VIntegral amount, VString str) <- binary
+  --let newStr = lastN (fromInteger amount) str
+  return $ VString $ lastN' (fromInteger amount) str
+
+lastN' :: Int -> [a] -> [a]
+lastN' n xs = foldl (const . drop 1) xs (drop n xs)
 
 setLineNum = do
   (VIntegral line) <- unary
@@ -543,12 +543,24 @@ vm' = do
         Rand l -> do
             getRand >>= pushStack
             vm'
-        --Sin l -> do
-        --ArcSin l -> do
-        --Cos l -> do
-        --ArcCos l -> do
-        --Tan l -> do
-        --ArcTan l -> do
+        Sin l -> do
+            getSin >>= pushStack
+            vm'
+        ArcSin l -> do
+            getArcSin >>= pushStack
+            vm'
+        Cos l -> do
+            getCos >>= pushStack
+            vm'
+        ArcCos l -> do
+            getArcCos >>= pushStack
+            vm'
+        Tan l -> do
+            getTan >>= pushStack
+            vm'
+        ArcTan l -> do
+            getArcTan >>= pushStack
+            vm'
         Or l -> do
             getOr >>= pushStack
             vm'
@@ -587,6 +599,9 @@ vm' = do
             vm'
         Substring l -> do
             getSubstring >>= pushStack
+            vm'
+        SubstrLast l -> do
+            getSubstrLast >>= pushStack
             vm'
         AStore l -> do
             astore
