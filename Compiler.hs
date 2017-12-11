@@ -61,7 +61,8 @@ data Bytecode = End {line :: Integer} | Push {line :: Integer, arg :: Value} | P
                 ALoad {line :: Integer} | ALoad2D {line :: Integer} | NewArray {line :: Integer} | NewArray2D {line :: Integer} |
                 AStore {line :: Integer} | OnGoto {line :: Integer} | OnGosub {line :: Integer} | Length {line :: Integer} | 
                 Substring {line :: Integer} | Sin {line :: Integer} | Cos {line :: Integer} | Tan {line :: Integer} | 
-                ArcSin {line :: Integer} | ArcCos {line :: Integer} | ArcTan {line :: Integer} | SubstrLast {line :: Integer} deriving (Eq)
+                ArcSin {line :: Integer} | ArcCos {line :: Integer} | ArcTan {line :: Integer} | SubstrLast {line :: Integer} |
+                NoOp {line :: Integer} deriving (Eq)
 
 instance Show Bytecode where
     show (End l) = "end"
@@ -110,6 +111,7 @@ instance Show Bytecode where
     show (ArcCos l) = "arccos"
     show (ArcTan l) = "arctan"
     show (SubstrLast l) = "substrlast"
+    show (NoOp l) = "noop"
 
 data Value = VIntegral Integer | VFloating Double | VString String | VSymbol {name :: String, val :: Value} |
              VBool Bool | VStatement [Bytecode] | VIntegerList [Integer] | Null | VPair (Value, Value) |
